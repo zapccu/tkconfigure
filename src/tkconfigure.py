@@ -1,5 +1,5 @@
 import tkinter as tk
-import dwidgets as dw
+import tkcwidgets as tkcw
 
 from typing import Literal
 
@@ -14,14 +14,13 @@ from typing import Literal
 # Parameters:
 #
 #   parameterDefinition - dictionary with config parameters
-#   widgetList - List of allowed widgets
 #
 # Methods:
 #
 #   setDefault(id) - Set default/initial value of parameter <id>
 #   reset() - Set default/initial values for all parameters
 #   setParameterDefiniton(parameterDefintion) - Change parameter definition
-
+#
 # A parameter definition is a dictionary with the following syntax:
 #
 # {
@@ -43,13 +42,10 @@ from typing import Literal
 
 class AppConfig:
 
-	def __init__(self, parameterDefinition = None, widgets: list = [ 'NumSpinbox', 'NumEntry', 'NumCombobox' ]):
+	def __init__(self, parameterDefinition = None):
 
 		# Allowed parameter definition keys. Can be enhanced by method addKey()
 		self.keys = [ 'group', 'inputType', 'valRange', 'initValue', 'widget', 'label', 'width' ]
-
-		# Allowed widget types
-		self.widgets = widgets
 
 		# Current configuration values: ['id'] -> value
 		self.config = {}
@@ -79,7 +75,7 @@ class AppConfig:
 			for k in parameterDefinition[id]:
 				if k not in self.keys:
 					raise KeyError(k)
-				if k == 'widget' and parameterDefinition[id][k] not in self.widgets:
+				if k == 'widget' and parameterDefinition[id][k] not in tkcw.widgets:
 					raise ValueError(parameterDefinition[id][k])
 
 		self.parDef = parameterDefinition
@@ -130,13 +126,13 @@ class AppConfig:
 				row = startRow+r
 				width = self.parDef[id]['width'] if 'width' in self.parDef[id] else 20
 				if (self.parDef[id]['widget'] == 'NumSpinbox'):
-					self.widget[id] = dw.NumSpinbox(master, id=id, inputType=self.parDef[id]['inputType'], valRange=self.parDef[id]['valRange'], initValue=self.get(id),
+					self.widget[id] = tkcw.NumSpinbox(master, id=id, inputType=self.parDef[id]['inputType'], valRange=self.parDef[id]['valRange'], initValue=self.get(id),
 						onChange=self.onChange, justify='right', width=width, *args, **kwargs)
 				elif (self.parDef[id]['widget'] == 'NumEntry'):
-					self.widget[id] = dw.NumEntry(master, id=id, inputType=self.parDef[id]['inputType'], valRange=self.parDef[id]['valRange'], initValue=self.get(id),
+					self.widget[id] = tkcw.NumEntry(master, id=id, inputType=self.parDef[id]['inputType'], valRange=self.parDef[id]['valRange'], initValue=self.get(id),
 						onChange=self.onChange, justify='right', width=width, *args, **kwargs)
 				elif (self.parDef[id]['widget'] == 'NumCombobox'):
-					self.widget[id] = dw.NumCombobox(master, id=id, valRange=self.parDef[id]['valRange'], initValue=self.get(id),
+					self.widget[id] = tkcw.NumCombobox(master, id=id, valRange=self.parDef[id]['valRange'], initValue=self.get(id),
 						onChange=self.onChange, justify='left', width=width, *args, **kwargs)
 				else:
 					raise ValueError(self.parDef[id]['widget'])
