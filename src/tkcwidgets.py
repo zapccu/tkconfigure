@@ -43,13 +43,13 @@ class _TKCWidget:
 			return
 		
 		if inputType == 'str':
-			if type(valRange) != 'list': raise TypeError('valRange')
+			if type(valRange) is not list: raise TypeError('valRange')
 			if len(valRange) == 0: raise ValueError('valRange == []')
-		elif type(valRange) == 'tuple' and (len(valRange) < 2 or len(valRange) > 3):
+		elif type(valRange) is tuple and (len(valRange) < 2 or len(valRange) > 3):
 			raise ValueError(valRange)
-		elif type(valRange) == 'list' and len(valRange) == 0:
+		elif type(valRange) is list and len(valRange) == 0:
 			raise ValueError('valRange == []')
-		elif type(valRange) != 'tuple' and type(valRange) != 'list':
+		elif type(valRange) is not tuple and type(valRange) is not list:
 			raise TypeError('valRange', valRange, type(valRange))
 
 	def _validate(self, value) -> bool:
@@ -57,14 +57,14 @@ class _TKCWidget:
 	
 	def _checkRange(self, value) -> bool:
 		if self.valRange is None or len(self.valRange) < 2: return True
-		if type(self.valRange) == 'tuple':
+		if type(self.valRange) is tuple:
 			if self.inputType == 'int':
 				return self.valRange[0] <= int(value) <= self.valRange[1]
 			elif self.inputType == 'float':
 				return self.valRange[0] <= float(value) <= self.valRange[1]
 			else:
 				return False
-		elif type(self.valRange) == 'list':
+		elif type(self.valRange) is list:
 			return value in self.valRange
 
 	def _validate(self, value) -> bool:
@@ -155,14 +155,14 @@ class TKCSpinbox(_TKCWidget, tk.Spinbox):
 		# Check parameters
 		_TKCWidget._checkParameters(inputType, valRange, vrMandatory=True)
 
-		if type(valRange) == 'tuple':
+		if type(valRange) is tuple:
 			if inputType == 'str': raise TypeError(valRange)
 			self.increment = valRange[2] if len(valRange) == 3 else 1
 			tk.Spinbox.__init__(self, parent, from_=valRange[0], to=valRange[1], increment=self.increment, *args, **kwargs)
-		elif type(valRange) == 'list':
+		elif type(valRange) is list:
 			tk.Spinbox.__init__(self, parent, values=valRange, *args, **kwargs)
 
-		_TKCWidget.__init__(self, id, inputType=inputType, valRange=valRange, initValue=initValue, onChange=onChange)
+		_TKCWidget.__init__(self, parent, id, inputType=inputType, valRange=valRange, initValue=initValue, onChange=onChange)
 
 		self.config(
 			command=self._update,	# Spinner control pressed
@@ -244,19 +244,19 @@ class TKCListbox(_TKCWidget, ttk.Combobox):
 		_TKCWidget._checkParameters(inputType, valRange, vrMandatory=True)
 
 		ttk.Combobox.__init__(self, parent, state='readonly', values=valRange, *args, **kwargs)
-		_TKCWidget.__init__(self, id, inputType=inputType, valRange=valRange, initValue=initValue, onChange=onChange)
+		_TKCWidget.__init__(self, parent, id, inputType=inputType, valRange=valRange, initValue=initValue, onChange=onChange)
 
-		self.bind("<ComboboxSelected>", self._update)
+		self.bind("<<ComboboxSelected>>", self._update)
 
 	def _getWidgetValue(self):
 		return self.current()
 	
 	def _checkRange(self, value):
-		if type(value) == int:
+		if type(value) is int:
 			return value >= 0 and value < len(self.valRange)
-		elif type(value) == float:
+		elif type(value) is float:
 			return int(value) >= 0 and int(value) < len(self.valRange)
-		elif type(value) == str:
+		elif type(value) is str:
 			idx = self.valRange.index(value)	# Raise ValueError if value is not in valRange
 			return True
 		else:
