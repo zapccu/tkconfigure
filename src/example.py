@@ -47,7 +47,7 @@ class A:
 
 	def configure(self, master):
 		row = self.appConfig.createMask(master, groups = [''], padx=2, pady=4)
-		row = self.appConfig.createMask(master, startRow=row+1, groups=['Calculation settings', 'Modes'], groupWidth=380, padx=2, pady=4)
+		row = self.appConfig.createMask(master, startRow=row, groups=['Calculation settings', 'Modes'], groupWidth=380, padx=2, pady=4)
 		b = Button(master, text="Print", command=onPrint)
 		b.grid(columnspan=2, row=row+1, column=0, pady=10)
 
