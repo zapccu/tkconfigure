@@ -2,7 +2,7 @@ import tkinter as tk
 import tkinter.ttk as ttk
 from typing import Literal
 
-widgets = [ 'TKCNumSpinbox', 'TKCTxtSpinbox', 'TKCNumEntry', 'TKCListBox', 'TKCCheckbox' ]
+widgets = [ 'TKCSpinbox', 'TKCEntry', 'TKCListBox', 'TKCCheckbox' ]
 
 ###############################################################################
 # Base class for all TKC widgets
@@ -10,12 +10,20 @@ widgets = [ 'TKCNumSpinbox', 'TKCTxtSpinbox', 'TKCNumEntry', 'TKCListBox', 'TKCC
 
 class _TKCWidget:
 
-	def __init__(self, parent, id: str, valRange: tuple = None, initValue = None, onChange = None):
-		self.parent   = parent
-		self.id       = id
-		self.onChange = onChange
-		self.valRange = valRange
-		self.textVar  = tk.StringVar()
+	def __init__(self, parent, id: str, inputType: Literal['int','float','str'] = 'str', valRange: tuple = None, initValue = None, onChange = None):
+		# Parameter checks
+		if inputType not in ['int','float','str']: raise TypeError(inputType)
+		if valRange is not None:
+			if type(valRange) == 'tuple':
+				if inputType == 'str': raise TypeError(valRange)
+				if len(valRange) < 2 or len(valRange) > 3: raise ValueError(valRange)
+
+		self.parent    = parent
+		self.id        = id
+		self.inputType = inputType
+		self.onChange  = onChange
+		self.valRange  = valRange
+		self.textVar   = tk.StringVar()
 
 		# All child widget must support 'textvariable=' attribute
 		self.config(
@@ -35,8 +43,27 @@ class _TKCWidget:
 		return True
 	
 	def _checkRange(self, value) -> bool:
-		return True
+		if self.valRange is None or len(self.valRange) < 2: return True
+		if type(self.valRange) == 'tuple':
+			if self.inputType == 'int':
+				return self.valRange[0] <= int(value) <= self.valRange[1]
+			elif self.inputType == 'float':
+				return self.valRange[0] <= float(value) <= self.valRange[1]
+			else:
+				return False
+		elif type(self.valRange) == 'list':
+			return value in self.valRange
 
+	def _validate(self, value) -> bool:
+		try:
+			if self.inputType == 'int':
+				v = int(value)
+			elif self.inputType == 'float':
+				v = float(value)
+			return True
+		except ValueError:
+			return False
+		
 	def _update(self, event = None):
 		value = self._getWidgetValue()
 		if self._checkRange(value):
@@ -65,63 +92,25 @@ class _TKCWidget:
 			self.var = value
 			self.textVar.set(str(value))
 		else:
-			raise ValueError(value)		
-
-###############################################################################
-# Base class for numeric widgets
-###############################################################################
-
-class _TKCNumWidget(_TKCWidget):
-
-	def __init__(self, parent, id: str, inputType: Literal['int','float'] = 'int', valRange: tuple = None, initValue = None, onChange = None, *args, **kwargs):
-		
-		super().__init__(parent, id, valRange=valRange, initValue=initValue, onChange=onChange)
-
-		self.inputType = inputType
-		self.increment = valRange[2] if valRange is not None and len(valRange) else 1
-
-		self.config(
-			validate='key',
-			validatecommand=(parent.register(self._validate), '%P')
-		)
-
-	def _getWidgetValue(self):
-		if self.inputType == 'int':
-			return int(self.textVar.get())
-		else:
-			return float(self.textVar.get())
-		
-	def _checkRange(self, value) -> bool:
-		if self.valRange is None or len(self.valRange) < 2:
-			return True
-		else:
-			return self.valRange[0] <= value <= self.valRange[1]
-
-	def _validate(self, value) -> bool:
-		try:
-			if self.inputType == 'int':
-				v = int(value)
-			else:
-				v = float(value)
-			return True
-		except ValueError:
-			return False
+			raise ValueError(value)
 
 ###############################################################################
 #
-# Create numeric Spinbox widget
+# Create a Spinbox widget
 #
 # Usage:
 #
-#   Spinbox = TKCNumSpinbox(master, options, tkinter-Spinbox-options)
+#   Spinbox = TKCSpinbox(master, options, tkinter-Spinbox-options)
 #
 # Parameters:
 #
 #   master - the parent window
 #   options - key-value pairs:
 #
-#     inputType: Either 'int' or 'float', default = 'int'
-#     valRange:  Range of valid values. Format is (from, to [,increment=1])
+#     inputType: Either 'int', 'float' or 'str', default = 'int'
+#     valRange:  List with valid values or tuple with range of values.
+#                Tuple with range is only allowed for inputType 'int'
+#                or 'float'
 #     initValue: Initial value
 #     onChange:  A function which is called with the current widget value as
 #                parameter when either spinner buttons were pressed or ENTER
@@ -134,47 +123,47 @@ class _TKCNumWidget(_TKCWidget):
 #
 ###############################################################################
 
-class TKCNumSpinbox(_TKCNumWidget, tk.Spinbox):
+class TKCSpinbox(_TKCWidget, tk.Spinbox):
 
-	def __init__(self, parent, id: str, inputType: Literal['int', 'float'] = 'int',
+	def __init__(self, parent, id: str, inputType: Literal['int','float','str'] = 'int',
 				valRange: tuple = (0, 0, 1), initValue = None, onChange = None, *args, **kwargs):
-		
-		tk.Spinbox.__init__(self, parent, from_=valRange[0], to=valRange[1], *args, **kwargs)
-		_TKCNumWidget.__init__(self, id, inputType=inputType, valRange=valRange, initValue=initValue, onChange=onChange)
+		_TKCWidget.__init__(self, id, inputType=inputType, valRange=valRange, initValue=initValue, onChange=onChange)
+
+		if valRange is None and inputType == 'str': raise ValueError
+
+		if type(valRange) == 'tuple':
+			if inputType == 'str': raise TypeError(valRange)
+			fr = 0
+			to = 0
+			if len(valRange) > 0: fr = valRange[0]
+			if len(valRange) > 1: to = valRange[0]
+			self.increment = valRange[2] if len(valRange) > 2 else 1
+
+			tk.Spinbox.__init__(self, parent, from_=fr, to=to, increment=self.increment, *args, **kwargs)
+		elif type(valRange) == 'list'
+			tk.Spinbox.__init__(self, parent, values=valRange, *args, **kwargs)
+
 
 		self.config(
 			command=self._update,			# Spinner control pressed
-			increment = self.increment
 		)
 
-class TKCTxtSpinbox(_TKCWidget, tk.Spinbox):
-
-	def __init__(self, parent, id: str, valRange: tuple,
-				initValue = None, onChange = None, *args, **kwargs):
-		
-		tk.Spinbox.__init__(self, parent, values=valRange, *args, **kwargs)
-		_TKCWidget.__init__(self, id, valRange=valRange, initValue=initValue, onChange=onChange)
-
-		self.config(
-			command=self._update,			# Spinner control pressed
-			increment = self.increment
-		)
 
 ###############################################################################
 #
-# Create numeric entry widget
+# Create an entry widget
 #
 # Usage:
 #
-#   Entry = NumEntry(master, options, tkinter-Entry-options)
+#   Entry = TKCEntry(master, options, tkinter-Entry-options)
 #
 # Parameters:
 #
 #   master - the parent window
 #   options - key-value pairs:
 #
-#     inputType: Either 'int' or 'float', default = 'int'
-#     valRange:  Range of valid values. Format is (from, to)
+#     inputType: Either 'int', 'float' or 'str', default = 'str'
+#     valRange:  Tuple with range of valid values. Format is (from, to)
 #     initValue: Initial value
 #     onChange:  A function which is called with the current widget value as
 #                parameter when either spinner buttons were pressed or ENTER
@@ -187,13 +176,13 @@ class TKCTxtSpinbox(_TKCWidget, tk.Spinbox):
 #
 ###############################################################################
 
-class TKCNumEntry(_TKCNumWidget, tk.Entry):
-		
-	def __init__(self, parent, id: str, inputType: Literal['int', 'float'] = 'int',
+class TKCEntry(_TKCWidget, tk.Entry):
+
+	def __init__(self, parent, id: str, inputType: Literal['int','float','str'] = 'str',
 				valRange: tuple = None, initValue = None, onChange = None, *args, **kwargs):
 		
 		tk.Entry.__init__(self, parent, *args, **kwargs)
-		_TKCNumWidget.__init__(self, id, inputType=inputType, valRange=valRange, initValue=initValue, onChange=onChange)
+		_TKCWidget.__init__(self, parent, id, inputType=inputType, valRange=valRange, initValue=initValue, onChange=onChange)
 
 
 ###############################################################################
