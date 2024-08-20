@@ -25,7 +25,8 @@ class _TKCWidget:
 		)
 
 		# Set var and textVar to initial value
-		if not self._validate(initValue): raise ValueError(initValue)
+		if not self._validate(initValue):
+			raise ValueError(initValue)
 		self.initValue = initValue
 		self.set(initValue)
 
@@ -52,9 +53,6 @@ class _TKCWidget:
 		elif type(valRange) is not tuple and type(valRange) is not list:
 			raise TypeError('valRange', valRange, type(valRange))
 
-	def _validate(self, value) -> bool:
-		return True
-	
 	def _checkRange(self, value) -> bool:
 		if self.valRange is None or len(self.valRange) < 2: return True
 		if type(self.valRange) is tuple:
@@ -65,9 +63,15 @@ class _TKCWidget:
 			else:
 				return False
 		elif type(self.valRange) is list:
-			return value in self.valRange
+			if self.inputType == 'str':
+				return value in self.valRange
+			else:
+				return 0 <= int(value) < len(self.valRange)
 
 	def _validate(self, value) -> bool:
+		if self.inputType == 'str' and type(self.valRange) is list:
+			return value in self.valRange
+		
 		try:
 			if self.inputType == 'int':
 				v = int(value)
@@ -98,9 +102,12 @@ class _TKCWidget:
 			return float(self.textVar.get())
 		else:
 			return self.textVar.get()
-	
-	def _getWidgetString(self):
-		return self.textVar.get()
+		
+	def _setWidgetValue(self, value):
+		if self._validate(value) and self._checkRange(value):
+			self.textVar.set(str(value))
+		else:
+			raise ValueError(value)
 
 	def get(self):
 		return self.var
@@ -111,9 +118,9 @@ class _TKCWidget:
 	def set(self, value):
 		if self._validate(value) and self._checkRange(value):
 			self.var = value
-			self.textVar.set(str(value))
+			self._setWidgetValue(value)
 		else:
-			raise ValueError(value)
+			raise ValueError(type(self).__name__, self.id, value)
 
 ###############################################################################
 #
@@ -249,31 +256,45 @@ class TKCListbox(_TKCWidget, ttk.Combobox):
 		self.bind("<<ComboboxSelected>>", self._update)
 
 	def _getWidgetValue(self):
-		return self.current()
-	
-	def _checkRange(self, value):
-		if type(value) is int:
-			return value >= 0 and value < len(self.valRange)
-		elif type(value) is float:
-			return int(value) >= 0 and int(value) < len(self.valRange)
-		elif type(value) is str:
-			idx = self.valRange.index(value)	# Raise ValueError if value is not in valRange
-			return True
+		if self.inputType == 'int':
+			return int(self.current())
+		elif self.inputType == 'float':
+			return float(self.current())
 		else:
-			raise ValueError(value)
-
+			return self.textVar.get()
+	
+	def _setWidgetValue(self, value):
+		if type(value) is str:
+			self.textVar.set(value)
+		elif type(value) is int:
+			self.current(newindex=value)
+		elif type(value) is float:
+			self.current(newindex=int(value))
+		else:
+			raise TypeError(value)
 
 class TKCCheckbox(_TKCWidget, tk.Checkbutton):
 		
 	def __init__(self, parent, id: str, inputType: Literal['int','float','str'] = 'str',
-				valRange = None, initValue = False, onChange = None, *args, **kwargs):
+				valRange = None, initValue = 0, onChange = None, *args, **kwargs):
 		# Check parameters
 		_TKCWidget._checkParameters(inputType, valRange)
+
+		self.intVar = tk.IntVar()
 
 		tk.Checkbutton.__init__(self, parent, *args, **kwargs)
 		_TKCWidget.__init__(self, parent, id, inputType=inputType, valRange=valRange, initValue=initValue, onChange=onChange)
 
 		self.config(
-			command=self._update
+			text=id,
+			anchor='w',
+			command=self._update,
+			textvariable='',
+			variable=self.intVar
 		)
 
+	def _getWidgetValue(self):
+		return self.intVar.get()
+	
+	def _setWidgetValue(self, value):
+		self.intVar.set(value)

@@ -2,29 +2,38 @@
 from tkinter import *
 import tkconfigure as tkc
 
-master = Tk()
-master.geometry("400x600")
 
 
-class A:
+# An application class
+class App:
 
 	def __init__(self, fl: int, mi: int, ba: float):
 
+		# Create a window
+		self.master = Tk()
+		self.master.geometry("600x600")
+
+		# TKC configuration
 		self.appConfig = tkc.AppConfig({
+			# Parameters with no group (group name is '')
 			'': {
+				# Leaving most of the attributes empty will create a TKCEntry widget
 				'filename': {
 					'label': 'File name'
 				}
 			},
+			# First group 'Calculation settings'
 			'Calculation settings': {
+				# Integer parameter shown as TKCSpinbox widget
 				'maxIter': {
-					'inputType': 'int',
-					'valRange':  (100, 4000, 10),
-					'initValue': mi,
-					'widget':    'TKCSpinbox',
-					'label':     'Max. iterations',
-					'width':     10
+					'inputType': 'int',               # Input type ('int', 'float' or 'str')
+					'valRange':  (100, 4000, 10),     # Value range 100-4000 and increment
+					'initValue': mi,                  # Initial / default value for the parameter
+					'widget':    'TKCSpinbox',        # The widget type
+					'label':     'Max. iterations',   # Label shown in front or top of the widget
+					'width':     10                   # Width of the widget in characters
 				},
+				# Float parameter shown as TKCEntry widget with numeric input only
 				'bailout': {
 					'inputType': 'float',
 					'valRange':  (4.0, 10000.0),
@@ -34,29 +43,71 @@ class A:
 					'width':     10
 				}
 			},
+			# Second group 'Modes'
 			'Modes': {
-				'drawMode': {
-					'inputType': 'str',
-					'valRange':  ['Line-by-Line', 'SQEM recursive', 'SQEM iterative'],
-					'initValue': 'Line-by-Line',
+				# This parameter is represented by a TKCListbox widget (a readonly Combobox)
+				'sDrawMode': {
+					'inputType': 'str',            # Widget should return the selected string instead of the list index
+					'valRange':  [                 # Value list required because of input type 'str'
+						'Line-by-Line',
+						'SQEM recursive',
+						'SQEM iterative'
+					],
+					'initValue': 'Line-by-Line',   # Type of initial value must match the input type
 					'widget':    'TKCListbox',
-					'label':     'Drawing mode'
+					'label':     'Drawing mode',
+					'width':     15
+				},
+				'iDrawMode': {
+					'inputType': 'int',            # Widget should return the selected string instead of the list index
+					'valRange':  [                 # Value list required because of input type 'str'
+						'Line-by-Line',
+						'SQEM recursive',
+						'SQEM iterative'
+					],
+					'initValue': 'Line-by-Line',   # Type of initial value must match the input type
+					'widget':    'TKCListbox',
+					'label':     'Drawing mode',
+					'width':     15
+				}
+			},
+			"Flags": {
+				'distance': {
+					'inputType': 'int',
+					'initValue': 0,
+					'widget':    'TKCCheckbox',
+				},
+				'potential': {
+					'inputType': 'int',
+					'initValue': 0,
+					'widget':    'TKCCheckbox'
 				}
 			}
 		})
 
-	def configure(self, master):
-		row = self.appConfig.createMask(master, groups = [''], padx=2, pady=4)
-		row = self.appConfig.createMask(master, startRow=row, groups=['Calculation settings', 'Modes'], groupWidth=380, padx=2, pady=4)
-		b = Button(master, text="Print", command=onPrint)
+	# This function creates the widgets
+	def configure(self):
+		# Create the widgets with the specified groups. The width of the Labelframe for the groups is 380 pixels
+		row = self.appConfig.createMask(self.master, startrow=0, groups=['', 'Calculation settings', 'Modes', 'Flags'], groupwidth=400, padx=2, pady=4)
+
+		# Add a button to show the current configuration
+		b = Button(self.master, text="Print", command=self.onPrint)
 		b.grid(columnspan=2, row=row+1, column=0, pady=10)
 
+	# Function is called when button is pressed. Shows the current configuration
+	def onPrint(self):
+		print(self.appConfig.getConfig())
 
-def onPrint():
-	print(m.appConfig.getConfig())
 
-m = A(0, 256, 4.0)
-m.configure(master)
+##########################
+#  Main program
+##########################
+
+# Create the app
+myApp = App(0, 256, 4.0)
+
+# Show parameter configuration widgets
+myApp.configure()
 
 
 mainloop()
