@@ -79,7 +79,9 @@ class AppConfig:
 			for id in self.parDef[group]:
 				self.config[id] = self.getPar(group, id, 'initValue')
 
+	# Set parameter definition and set config values to default values
 	def setParameterDefinition(self, parameterDefinition: dict):
+		# Validate parameter definition
 		for group in parameterDefinition:
 			for id in parameterDefinition[group]:
 				for k in parameterDefinition[group][id]:
@@ -139,7 +141,7 @@ class AppConfig:
 			g = group
 		return self.getPar(g, id, 'initValue')
 
-
+	# Get config value [id]
 	def __getitem__(self, id: str):
 		return self.get(id)
 
@@ -150,7 +152,7 @@ class AppConfig:
 		else:
 			raise KeyError(id)
 	
-	# Create the widgets, return number of next free row
+	# Create widgets for specified parameter group, return number of next free row
 	def createWidgets(self, master, group: str = '', columns: int = 2, startRow: int = 0, pady=0, *args, **kwargs):
 		row = startRow
 
@@ -178,14 +180,14 @@ class AppConfig:
 
 		for g in groupList:
 			if g == '':
-				# No group, create widgets as child of master frame
+				# No group, create widgets as childs of master frame
 				row = self.createWidgets(master, columns=columns, startRow=row, pady=pady, *args, **kwargs)
 			else:
 				# Create group frame
 				self.widget[g] = tk.LabelFrame(master, text=g, width=groupWidth)
 				self.widget[g].grid(row=row, column=0, padx=padx, pady=pady, sticky='ew')
 				row += 1	# Count the label frame
-				# Row number is relative to label frame, starts from 0
+				# Create widgets as childs of label frame. Row number is relative to label frame, starts from 0
 				self.createWidgets(self.widget[g], group=g, columns=columns, startRow=0, pady=pady, *args, **kwargs)
 
 		return row
