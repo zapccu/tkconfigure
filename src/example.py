@@ -14,7 +14,7 @@ class App:
 		self.master.geometry("600x600")
 
 		# TKC configuration
-		self.appConfig = tkc.AppConfig({
+		self.appConfig = tkc.TKConfigure({
 			# Parameters with no group (group name is '')
 			'': {
 				# Leaving most of the attributes empty will create a TKCEntry widget
@@ -88,15 +88,20 @@ class App:
 	# This function creates the widgets
 	def configure(self):
 		# Create the widgets with the specified groups. The width of the Labelframe for the groups is 380 pixels
-		row = self.appConfig.createMask(self.master, startrow=0, groups=['', 'Calculation settings', 'Modes', 'Flags'], groupwidth=400, padx=2, pady=4)
+		row = self.appConfig.createMask(self.master, startrow=0, groups=['', 'Calculation settings', 'Modes', 'Flags'], groupwidth=400, padx=10, pady=5)
 
 		# Add a button to show the current configuration
-		b = Button(self.master, text="Print", command=self.onPrint)
-		b.grid(columnspan=2, row=row+1, column=0, pady=10)
+		btn1 = Button(self.master, text="Print", command=self.onPrint)
+		btn1.grid(row=row, column=0, pady=10)
+		btn2 = Button(self.master, text="Configure", command=self.onConfigure)
+		btn2.grid(row=row, column=1)
 
 	# Function is called when button is pressed. Shows the current configuration
 	def onPrint(self):
 		print(self.appConfig.getConfig())
+
+	def onConfigure(self):
+		self.appConfig.createDialog(self.master, 450, 700, title="Change configuration", padx=10, pady=5)
 
 
 ##########################

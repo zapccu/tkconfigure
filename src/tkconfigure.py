@@ -10,7 +10,7 @@ from typing import Literal
 #
 # Usage:
 #
-#   Config = AppConfig(parameterDefinition [, widgetList])
+#   Config = TKConfigure(parameterDefinition [, widgetList])
 #
 # Parameters:
 #
@@ -44,9 +44,9 @@ from typing import Literal
 #
 ###############################################################################
 
-class AppConfig:
+class TKConfigure:
 
-	def __init__(self, parameterDefinition = None):
+	def __init__(self, parameterdefinition: dict | None = None, config: dict | None = None):
 
 		# Allowed parameter definition keys. Can be enhanced by method addKey()
 		self.keys = [ 'inputType', 'valRange', 'initValue', 'widget', 'label', 'width' ]
@@ -58,18 +58,16 @@ class AppConfig:
 			'label':     '',
 			'width':     20
 		}
-
-		# Current configuration values: ['id'] -> value
-		self.config = {}
+		
+		# Parameter definition: ['id'] -> definition
+		if parameterdefinition is None:
+			self.parDef = {}
+			self.config = {}
+		else:
+			self.setParameterDefinition(parameterdefinition, config)
 
 		# Created widgets: ['id'] -> widget
 		self.widget = {}
-
-		# Parameter definition: ['id'] -> definition
-		if parameterDefinition is None:
-			self.parDef = {}
-		else:
-			self.setParameterDefinition(parameterDefinition)
 
 	# Set parameter value to default
 	def setDefault(self, group: str, id: str):
@@ -84,12 +82,13 @@ class AppConfig:
 	
 	# Set current config to default values
 	def reset(self):
+		self.config = {}
 		for group in self.parDef:
 			for id in self.parDef[group]:
 				self.setDefault(group, id)
 
 	# Set parameter definition and set config values to default values
-	def setParameterDefinition(self, parameterDefinition: dict):
+	def setParameterDefinition(self, parameterDefinition: dict, config: dict | None = None):
 		# Validate parameter definition
 		for group in parameterDefinition:
 			for id in parameterDefinition[group]:
@@ -100,7 +99,15 @@ class AppConfig:
 						raise ValueError(parameterDefinition[group][id][k])
 
 		self.parDef = parameterDefinition
-		self.reset()
+
+		if config is None:
+			self.reset()
+		else:
+			self.setConfig(config)
+
+	# Get current parameter definition as dictionary
+	def getParameterDefinition(self):
+		return self.parDef
 
 	# Add new key to parameter definition
 	def addKey(self, id: str):
@@ -135,7 +142,13 @@ class AppConfig:
 			return self.parDef[group][id][key]
 		else:
 			return self.defaults[key]
-		
+	
+	# Set current config from dictionary
+	def setConfig(self, config: dict):
+		for id in config:
+			self.getGroup(id)
+		self.config = config
+
 	# Get current config as dictionary
 	def getConfig(self) -> dict:
 		return self.config
@@ -224,3 +237,4 @@ class AppConfig:
 	def onChange(self, id: str, value):
 		if id in self.config:
 			self.config[id] = value
+
