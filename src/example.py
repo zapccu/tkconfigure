@@ -55,7 +55,7 @@ class App:
 					],
 					'initValue': 'Line-by-Line',   # Type of initial value must match the input type
 					'widget':    'TKCListbox',
-					'label':     'Drawing mode',
+					'label':     'Drawing mode str',
 					'width':     15
 				},
 				'iDrawMode': {
@@ -67,8 +67,11 @@ class App:
 					],
 					'initValue': 'Line-by-Line',   # Type of initial value must match the input type
 					'widget':    'TKCListbox',
-					'label':     'Drawing mode',
-					'width':     15
+					'label':     'Drawing mode int',
+					'width':     15,
+					'widgetAttr': {
+						'justify': 'left'
+					}
 				}
 			},
 			"Flags": {
@@ -98,7 +101,8 @@ class App:
 
 	# Function is called when button is pressed. Shows the current configuration
 	def onPrint(self):
-		print(self.appConfig.getConfig())
+		for id in self.appConfig.getIds():
+			print(id, "=", self.appConfig[id])
 
 	def onConfigure(self):
 		status = self.appConfig.showDialog(self.master, 450, 700, title="Change configuration", padx=10, pady=5)

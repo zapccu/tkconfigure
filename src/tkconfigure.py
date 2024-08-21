@@ -10,28 +10,32 @@ from typing import Literal
 #
 # Usage:
 #
-#   Config = TKConfigure(parameterDefinition [, widgetList])
+#   Config = TKConfigure(parameterDefinition , configValues)
 #
 # Parameters:
 #
-#   parameterDefinition - dictionary with config parameters
+#   parameterDefinition - dictionary with definition of config parameters
+#   configValues - dictionary with parameter values
 #
-# Methods:
+# Parameter definition dictionary:
 #
-#   setDefaultValue(id) - Set default/initial value of parameter <id>
-#   resetConfigValues() - Set default/initial values for all parameters
-#   setParameterDefiniton(parameterDefintion) - Change parameter definition
-#
-# A parameter definition is a dictionary with the following syntax:
-#
-# "group-name": {
-#    "parameter-name": {
-#       "attribute-name": attribute-value,
-#       ... # Further attributes
+# {
+#    "group-name": {
+#       "parameter-name": {
+#          "attribute-name": attribute-value,
+#          ... # Further attributes
+#       },
+#       ... # Further parameter definitions
 #    },
-#    ... # Further parameter definitions
-# },
-# ... # Further groups, use "" for no-group
+#    ... # Further groups, use "" for no-group
+# }
+#
+# Parameter value dictionary:
+#
+# {
+#    "parameter-name": parameter-value,
+#    ...
+# }
 #
 ###############################################################################
 
@@ -40,16 +44,17 @@ class TKConfigure:
 	def __init__(self, parameterdefinition: dict | None = None, config: dict | None = None):
 
 		# Allowed parameter definition keys. Can be enhanced by method addKey()
-		self.attributes = [ 'inputType', 'valRange', 'initValue', 'widget', 'label', 'width' ]
+		self.attributes = [ 'inputType', 'valRange', 'initValue', 'widget', 'label', 'width', 'widgetAttr' ]
 
 		# Default values for parameter attributes
 		self.defaults = {
-			'inputType': 'str',
-			'valRange':  None,
-			'initValue': None,
-			'widget':    'TKCEntry',
-			'label':     '',
-			'width':     20
+			'inputType':  'str',
+			'valRange':   None,
+			'initValue':  None,
+			'widget':     'TKCEntry',
+			'label':      '',
+			'width':      20,
+			'widgetAttr': {}
 		}
 
 		# Parameter ids: ['<id>'] -> <group>
@@ -67,10 +72,12 @@ class TKConfigure:
 
 	# Set parameter value to default
 	def setDefaultValue(self, group: str, id: str):
-		if group not in self.parDef or id not in self.parDef[group]:
-			raise KeyError(id)
+		if group not in self.parDef: raise KeyError("Unknown parameter group", group)
+		if id not in self.parDef[group]: raise KeyError("Unknown parameter id", id)
+
 		initValue = self.getPar(group, id, 'initValue')
 		valRange = self.getPar(group, id, 'valRange')
+
 		if self.getPar(group, id, 'inputType') != 'str' and type(valRange) is list:
 			self.config[id] = valRange.index(initValue)
 		else:
@@ -90,7 +97,7 @@ class TKConfigure:
 		# Validate parameter definition
 		for group in parameterDefinition:
 			for id in parameterDefinition[group]:
-				if id in self.idList: raise ValueError("Duplicate parameter id", id)
+				if id in self.idList: raise KeyError("Duplicate parameter id", id)
 				self.idList[id] = group
 				for k in parameterDefinition[group][id]:
 					if k not in self.attributes:
@@ -118,12 +125,12 @@ class TKConfigure:
 
 	# Get parameter group defintion as dictionary
 	def getGroupDefinition(self, group: str) -> dict:
-		if group is None or group not in self.parDef: raise ValueError("Unknown parameter group", group)
+		if group is None or group not in self.parDef: raise KeyError("Unknown parameter group", group)
 		return self.parDef[group]
 	
 	# Get parameter id definition as dictionary
 	def getIdDefinition(self, id: str) -> dict:
-		if id is None or id not in self.idList: raise ValueError("Unknown parameter id", id)
+		if id is None or id not in self.idList: raise KeyError("Unknown parameter id", id)
 		return self.parDef[self.idList[id]][id]
 
 	# Add new key to parameter definition
@@ -162,7 +169,7 @@ class TKConfigure:
 	# Set current config from dictionary
 	def setConfig(self, config: dict):
 		for id in config:
-			if id not in self.idList: raise ValueError("Unknown parameter id", id)
+			if id not in self.idList: raise KeyError("Unknown parameter id", id)
 		self.config = config
 
 	# Get current config as dictionary
@@ -171,11 +178,15 @@ class TKConfigure:
 
 	# Get parameter value
 	def get(self, id: str):
-		if id not in self.idList: raise ValueError("Unknown parameter id", id)
+		if id not in self.idList: raise KeyError("Unknown parameter id", id)
 		if id in self.config:
 			return self.config[id]
 		else:
 			return self.getPar(id, 'initValue')
+		
+	# Get parameter id list
+	def getIds(self) -> list:
+		return list(self.idList.keys())
 		
 	# Get parameter widget
 	def getWidget(self, id: str):
@@ -193,7 +204,11 @@ class TKConfigure:
 		if id in self.idList:
 			self.config[id] = value
 		else:
-			raise ValueError("Unknown paramete id", id)
+			raise KeyError("Unknown parameter id", id)
+		
+	# Set config value ['<id>'], shortcut for set(id)
+	def __setitem__(self, id: str, value):
+		self.set(id, value)
 	
 	# Create widgets for specified parameter group, return number of next free row
 	def createWidgets(self, master, group: str = '', singlecol: bool = False, startrow: int = 0, padx=0, pady=0, *args, **kwargs):
@@ -205,6 +220,11 @@ class TKConfigure:
 			justify = 'left' if self.getPar(group, id, 'inputType') == 'str' else 'right'
 			self.widget[id] = widgetClass(master, id=id, inputType=self.getPar(group, id, 'inputType'), valRange=self.getPar(group, id, 'valRange'),
 					initValue=self.get(id), onChange=self._onChange, justify=justify, width=self.getPar(group, id, 'width'), *args, **kwargs)
+			
+			# Set parameter specific widget attributes
+			widgetAttr = self.getPar(group, id, 'widgetAttr')
+			if len(widgetAttr) > 0:
+				self.widget[id].config(**widgetAttr)
 
 			lblText = self.getPar(group, id, 'label')
 			if lblText != '':
