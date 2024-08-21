@@ -79,9 +79,9 @@ class TKConfigure:
 		valRange = self.getPar(group, id, 'valRange')
 
 		if self.getPar(group, id, 'inputType') != 'str' and type(valRange) is list:
-			self.config[id] = valRange.index(initValue)
+			self.set(id, valRange.index(initValue))
 		else:
-			self.config[id] = initValue
+			self.set(id, initValue)
 	
 	# Set all parameters of current config to default values
 	def resetConfigValues(self):
@@ -177,12 +177,14 @@ class TKConfigure:
 		return self.config
 
 	# Get parameter value
-	def get(self, id: str):
+	def get(self, id: str, returnDefault: bool = True):
 		if id not in self.idList: raise KeyError("Unknown parameter id", id)
-		if id in self.config:
-			return self.config[id]
+		if id in self.config and 'value' in self.config[id]:
+			return self.config[id]['value']
+		elif returnDefault:
+			return self.getPar(self.idList[id], id, 'initValue')
 		else:
-			return self.getPar(id, 'initValue')
+			raise ValueError("No value assigned parameter", id)
 		
 	# Get parameter id list
 	def getIds(self) -> list:
@@ -199,27 +201,41 @@ class TKConfigure:
 	def __getitem__(self, id: str):
 		return self.get(id)
 
-	# Set config value	
-	def set(self, id: str, value):
-		if id in self.idList:
-			self.config[id] = value
+	# Set config value if new value is different from current value
+	def set(self, id: str, newValue):
+		if id not in self.idList: raise KeyError("Unknown parameter id", id)
+		if id not in self.config or 'value' not in self.config[id]:
+			self.config.update({ id: { 'oldValue': newValue, 'value': newValue }})
 		else:
-			raise KeyError("Unknown parameter id", id)
+			curValue = self.config.get(id, {}).get('value')
+			if newValue != curValue:
+				self.config.update({ id: { 'oldValue': curValue, 'value': newValue }})
 		
 	# Set config value ['<id>'], shortcut for set(id)
 	def __setitem__(self, id: str, value):
 		self.set(id, value)
+
+	# Reset parameter value(s) to old values (if old value exists)
+	def undo(self, id: str | None = None):
+		if id is None:
+			for id in self.config:
+				self.undo(id)
+		else:
+			if id not in self.idList: raise KeyError("Unknown parameter id", id)
+			if id in self.config and 'oldValue' in self.config[id]:
+				self.config[id]['value'] = self.config[id]['oldValue']
 	
 	# Sync widget value(s) with current config value(s)
 	def syncWidget(self, id: str | None = None):
 		if id is None:
-			for id in self.widget:
-				if id in self.config:
-					self.widget[id].set(self.config[id])
+			for i in self.widget:
+				if i in self.config:
+					v = self.get(i)
+					self.widget[i].set(self.get(i))
 		elif id not in self.widget:
 			raise KeyError("Unknown widget id", id)
 		elif id in self.config:
-			self.widget[id].set(self.config[id])
+			self.widget[id].set(self.get(id))
 
 	# Sync current config with widget value(s)
 	# Usually this function is not needed. Configuration is synced automatically when a widget value has been changed
@@ -227,11 +243,11 @@ class TKConfigure:
 		if id is None:
 			for id in self.config:
 				if id in self.widget:
-					self.config[id] = self.widget[id].get()
+					self.set(id, self.widget[id].get())
 		elif id not in self.config:
 			raise KeyError("Unknown parameter id", id)
 		else:
-			self.config[id] = self.widget[id].get()
+			self.set(id, self.widget[id].get())
 
 	# Create widgets for specified parameter group, return number of next free row
 	def createWidgets(self, master, group: str = '', singlecol: bool = False, startrow: int = 0, padx=0, pady=0, *args, **kwargs):
@@ -347,5 +363,5 @@ class TKConfigure:
 	# Called when widget value has changed
 	def _onChange(self, id: str, value):
 		if id in self.idList:
-			self.config[id] = value
+			self.set(id, value)
 

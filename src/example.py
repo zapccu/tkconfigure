@@ -95,14 +95,17 @@ class App:
 
 		# Add a button to show the current configuration
 		btn1 = Button(self.master, text="Print", command=self.onPrint)
-		btn1.grid(row=row, column=0, pady=10)
 		btn2 = Button(self.master, text="Configure", command=self.onConfigure)
-		btn2.grid(row=row, column=1)
+		btn3 = Button(self.master, text="Undo", command=self.onUndo)
+		btn2.grid(row=row, column=0, pady=10)
+		btn3.grid(row=row, column=1, pady=10)
+		btn1.grid(row=row+1, column=0, pady=10)
 
 	# Function is called when button is pressed. Shows the current configuration
 	def onPrint(self):
 		for id in self.appConfig.getIds():
 			print(id, "=", self.appConfig[id])
+		print(self.appConfig.config)
 
 	def onConfigure(self):
 		status = self.appConfig.showDialog(self.master, width=500, height=0, title="Change configuration", groupwidth=400, padx=5, pady=5)
@@ -112,6 +115,9 @@ class App:
 		else:
 			print("Config not changed")
 
+	def onUndo(self):
+		self.appConfig.undo()
+		self.appConfig.syncWidget()
 
 ##########################
 #  Main program
@@ -119,6 +125,7 @@ class App:
 
 # Create the app
 myApp = App(0, 256, 4.0)
+print(myApp.appConfig.config)
 
 # Show parameter configuration widgets
 myApp.configure()
