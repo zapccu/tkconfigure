@@ -105,9 +105,10 @@ class App:
 			print(id, "=", self.appConfig[id])
 
 	def onConfigure(self):
-		status = self.appConfig.showDialog(self.master, 450, 700, title="Change configuration", padx=10, pady=5)
+		status = self.appConfig.showDialog(self.master, width=500, height=0, title="Change configuration", groupwidth=400, padx=5, pady=5)
 		if status:
 			print("Config changed")
+			self.appConfig.syncWidget()
 		else:
 			print("Config not changed")
 

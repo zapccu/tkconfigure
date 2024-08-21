@@ -225,11 +225,9 @@ class TKCEntry(_TKCWidget, tk.Entry):
 #
 # Parameters:
 #
-#   master - the parent window
-#
+#   master   - the parent window
 #   valRange - List of list entries
-#
-#   options - key-value pairs:
+#   options  - key-value pairs:
 #
 #     initValue: Index of initial value, default = 0
 #     onChange:  A function which is called with the current widget value as

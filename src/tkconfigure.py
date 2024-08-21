@@ -210,6 +210,29 @@ class TKConfigure:
 	def __setitem__(self, id: str, value):
 		self.set(id, value)
 	
+	# Sync widget value(s) with current config value(s)
+	def syncWidget(self, id: str | None = None):
+		if id is None:
+			for id in self.widget:
+				if id in self.config:
+					self.widget[id].set(self.config[id])
+		elif id not in self.widget:
+			raise KeyError("Unknown widget id", id)
+		elif id in self.config:
+			self.widget[id].set(self.config[id])
+
+	# Sync current config with widget value(s)
+	# Usually this function is not needed. Configuration is synced automatically when a widget value has been changed
+	def syncConfig(self, id: str | None = None):
+		if id is None:
+			for id in self.config:
+				if id in self.widget:
+					self.config[id] = self.widget[id].get()
+		elif id not in self.config:
+			raise KeyError("Unknown parameter id", id)
+		else:
+			self.config[id] = self.widget[id].get()
+
 	# Create widgets for specified parameter group, return number of next free row
 	def createWidgets(self, master, group: str = '', singlecol: bool = False, startrow: int = 0, padx=0, pady=0, *args, **kwargs):
 		row = startrow
@@ -260,7 +283,7 @@ class TKConfigure:
 
 			# Create group frame
 			self.widget[g] = tk.LabelFrame(master, text=g, borderwidth=border)
-			self.widget[g].grid(columnspan=2, row=row, column=0, padx=padx, pady=pady, sticky='w')
+			self.widget[g].grid(columnspan=2, row=row, column=0, padx=padx, pady=pady, sticky='we')
 
 			# Configure width of columns
 			if singlecol:
@@ -278,7 +301,7 @@ class TKConfigure:
 		return row
 	
 	# Show Toplevel window with input mask. Return True, if config has been changed
-	def showDialog(self, master, width: int, height: int, title: str = None, padx: int = 0, pady: int = 0, groups: list = [],
+	def showDialog(self, master, width: int = 0, height: int = 0, title: str = None, groupwidth=0, padx: int = 0, pady: int = 0, groups: list = [],
 					colwidth: tuple = (50.0, 50.0), *args, **kwargs) -> bool:
 		# Create a copy of the current configuration
 		newConfig = TKConfigure(self.getParameterDefinition(), self.getConfig())
@@ -296,18 +319,24 @@ class TKConfigure:
 			return result
 
 		# Create modal dialog window
+		width = max(width, groupwidth+2*padx)
 		dlg = tk.Toplevel(master)
-		dlg.geometry(f"{width}x{height}")
+		if width > 0 and height > 0:
+			dlg.geometry(f"{width}x{height}")
+			parent = dlg
+		else:
+			parent = tk.LabelFrame(dlg, borderwidth=0)
+			parent.grid(column=0, row=0, padx=10, pady=5, sticky='we')
 		dlg.grab_set()
 		dlg.title(title)
 
 		# Create the input mask
-		row = newConfig.createMask(dlg, startrow=0, padx=padx, pady=pady, groups=groups, groupwidth=width-padx*2,
+		row = newConfig.createMask(parent, startrow=0, padx=padx, pady=pady, groups=groups, groupwidth=max(0, width-padx*2),
 			colwidth=colwidth, *args, **kwargs)
 		
 		# Create the buttons
-		btnOk = tk.Button(dlg, text='OK', command=lambda: _onDlgButton(dlg, newConfig.getConfig()))
-		btnCancel = tk.Button(dlg, text='Cancel', command=lambda: _onDlgButton(dlg))
+		btnOk = tk.Button(parent, text='OK', command=lambda: _onDlgButton(dlg, newConfig.getConfig()))
+		btnCancel = tk.Button(parent, text='Cancel', command=lambda: _onDlgButton(dlg))
 		btnOk.grid(column=0, row=row)
 		btnCancel.grid(column=1, row=row)
 
