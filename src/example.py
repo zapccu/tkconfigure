@@ -12,6 +12,7 @@ class App:
 		# Create a window
 		self.master = Tk()
 		self.master.geometry("600x600")
+		self.master.title("TKConfigure Sample App")
 
 		# TKC configuration
 		self.appConfig = tkc.TKConfigure({
