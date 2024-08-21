@@ -75,11 +75,23 @@ class TKConfigure:
 		if group not in self.parDef: raise KeyError("Unknown parameter group", group)
 		if id not in self.parDef[group]: raise KeyError("Unknown parameter id", id)
 
+		inputType = self.getPar(group, id, 'inputType')
 		initValue = self.getPar(group, id, 'initValue')
 		valRange = self.getPar(group, id, 'valRange')
 
-		if self.getPar(group, id, 'inputType') != 'str' and type(valRange) is list:
-			self.set(id, valRange.index(initValue))
+		if type(valRange) is list:
+			
+
+			if self.getPar(group, id, 'inputType') != 'str':
+				if type(initValue) is str:
+					if initValue not in valRange:
+						raise ValueError("initValue not in valRange for parameter", id)
+					self.set(id, valRange.index(initValue))
+				else:
+					if initValue is None or int(initValue) < 0 or int(initValue) >= len(valRange):
+						raise ValueError("initValue not in valRange index range for parameter", id)
+			else:
+
 		else:
 			self.set(id, initValue)
 	

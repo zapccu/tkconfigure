@@ -16,7 +16,7 @@ class App:
 
 		# TKC configuration
 		self.appConfig = tkc.TKConfigure({
-			# Parameters with no group (group name is '')
+			# Parameters with no group (group name is empty string)
 			'': {
 				# Leaving most of the attributes empty will create a TKCEntry widget
 				'filename': {
@@ -25,7 +25,7 @@ class App:
 			},
 			# First group 'Calculation settings'
 			'Calculation settings': {
-				# Integer parameter shown as TKCSpinbox widget
+				# Integer parameter represented by a TKCSpinbox widget
 				'maxIter': {
 					'inputType': 'int',               # Input type ('int', 'float' or 'str')
 					'valRange':  (100, 4000, 10),     # Value range 100-4000 and increment
@@ -34,7 +34,7 @@ class App:
 					'label':     'Max. iterations',   # Label shown in front or top of the widget
 					'width':     10                   # Width of the widget in characters
 				},
-				# Float parameter shown as TKCEntry widget with numeric input only
+				# Float parameter represented by a TKCEntry widget with numeric input only
 				'bailout': {
 					'inputType': 'float',
 					'valRange':  (4.0, 10000.0),
@@ -54,24 +54,24 @@ class App:
 						'SQEM recursive',
 						'SQEM iterative'
 					],
-					'initValue': 'Line-by-Line',   # Type of initial value must match the input type
+					'initValue': 'Line-by-Line',   # If inputType is 'str', the initial value must be part of valRange list
 					'widget':    'TKCListbox',
 					'label':     'Drawing mode str',
 					'width':     15
 				},
 				'iDrawMode': {
-					'inputType': 'int',            # Widget should return the selected string instead of the list index
+					'inputType': 'int',            # Widget should return index of the selected string
 					'valRange':  [                 # Value list required because of input type 'str'
 						'Line-by-Line',
 						'SQEM recursive',
 						'SQEM iterative'
 					],
-					'initValue': 'Line-by-Line',   # Type of initial value must match the input type
+					'initValue': 0,                # if inputType is numeric, the initial value is a valid index for valRange list
 					'widget':    'TKCListbox',
 					'label':     'Drawing mode int',
 					'width':     15,
 					'widgetAttr': {
-						'justify': 'left'
+						'justify': 'left'          # Widget attribute for this parameter only	
 					}
 				}
 			},
