@@ -88,8 +88,11 @@ class App:
 			}
 		})
 
+	def run(self):
+		self.master.mainloop()
+
 	# This function creates the widgets
-	def configure(self):
+	def showMask(self):
 		# Create the widgets with the specified groups. The width of the Labelframe for the groups is 380 pixels
 		row = self.appConfig.createMask(self.master, startrow=0, groups=['', 'Calculation settings', 'Modes', 'Flags'], groupwidth=400, padx=10, pady=5)
 
@@ -125,11 +128,8 @@ class App:
 
 # Create the app
 myApp = App(0, 256, 4.0)
-print(myApp.appConfig.config)
 
 # Show parameter configuration widgets
-myApp.configure()
+myApp.showMask()
 
-
-mainloop()
-
+myApp.run()
