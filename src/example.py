@@ -101,7 +101,11 @@ class App:
 		print(self.appConfig.getConfig())
 
 	def onConfigure(self):
-		self.appConfig.createDialog(self.master, 450, 700, title="Change configuration", padx=10, pady=5)
+		status = self.appConfig.showDialog(self.master, 450, 700, title="Change configuration", padx=10, pady=5)
+		if status:
+			print("Config changed")
+		else:
+			print("Config not changed")
 
 
 ##########################
