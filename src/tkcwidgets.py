@@ -26,7 +26,7 @@ class _TKCWidget:
 
 		# Set var and textVar to initial value
 		if not self._validate(initValue):
-			raise ValueError(initValue)
+			raise ValueError(id, 'inputType', inputType, 'initValue', initValue, 'valRange', valRange)
 		self.initValue = initValue
 		self.set(initValue)
 

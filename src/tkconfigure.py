@@ -90,12 +90,14 @@ class TKConfigure:
 			
 		# Validate initValue and valRange
 		if type(valRange) is list:
-			if type(initValue) is str:
-				if initValue not in valRange:
-					raise ValueError("initValue not in valRange for parameter", id)
-				nInitValue = valRange.index(initValue)
-			elif initValue is None or int(initValue) < 0 or int(initValue) >= len(valRange):	
-				raise ValueError("initValue not in valRange index range for parameter", id)
+			if inputType != 'int' and inputType != 'str':
+				raise ValueError("inputType not allowed for valRange list for parametet", id)
+			if type(initValue) is str and initValue not in valRange:
+				raise ValueError("initValue not in valRange for parameter", id)
+			elif type(initValue) is int and (initValue < 0 or initValue >= len(valRange)):
+				raise IndexError("initValue not in valRange for parameter", id)
+			elif type(initValue) is float or initValue is None:
+				raise TypeError("Type of initValue doesn't match inputType for parameter", id)
 		elif type(valRange) is tuple:
 			if type(initValue) is str:
 				raise TypeError("initValue of parameter", id)
