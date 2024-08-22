@@ -50,7 +50,7 @@ class TKConfigure:
 		self.defaults = {
 			'inputType':  'str',
 			'valRange':   None,
-			'initValue':  None,
+			'initValue':  '',
 			'widget':     'TKCEntry',
 			'label':      '',
 			'width':      20,
@@ -75,18 +75,25 @@ class TKConfigure:
 		if group not in self.parDef: raise KeyError("Unknown parameter group", group)
 		if id not in self.parDef[group]: raise KeyError("Unknown parameter id", id)
 
-		inputType = self.parDef[group][id]['inputType']
-		initValue = self.parDef[group][id]['initValue']
-		valRange  = self.parDef[group][id]['valRange']
+		inputType = self.getPar(group, id, 'inputType')
+		initValue = self.getPar(group, id, 'initValue')
+		valRange  = self.getPar(group, id, 'valRange')
+		nInitValue = initValue
 
-		# Validate initValue, initType and valRange
+		# Validate inputType and initValue
+		if inputType == 'str' and type(initValue) is not str:
+			raise TypeError("Type of initValue doesn't match inputType for parameter", id)
+		elif inputType == 'int' and type(initValue) is float:
+			nInitValue = int(initValue)
+		elif inputType == 'float' and type(initValue) is int:
+			nInitValue = float(initValue)
+			
+		# Validate initValue and valRange
 		if type(valRange) is list:
 			if type(initValue) is str:
 				if initValue not in valRange:
 					raise ValueError("initValue not in valRange for parameter", id)
-				# Change initValue to match inputType
-				initValue = valRange.index(initValue)
-				self.parDef[group][id]['initValue'] = initValue
+				nInitValue = valRange.index(initValue)
 			elif initValue is None or int(initValue) < 0 or int(initValue) >= len(valRange):	
 				raise ValueError("initValue not in valRange index range for parameter", id)
 		elif type(valRange) is tuple:
@@ -95,7 +102,9 @@ class TKConfigure:
 			elif initValue < valRange[0] or initValue > valRange[1]:
 				raise ValueError("initValue out of valRange for parameter", id)
 
-		self.set(id, initValue)
+		if type(nInitValue) is not type(initValue):
+			self.parDef[group][id]['initValue'] = nInitValue
+		self.set(id, nInitValue)
 	
 	# Set all parameters of current config to default values
 	def resetConfigValues(self):
@@ -170,12 +179,16 @@ class TKConfigure:
 		# Set config value of new parameter to default (initValue)
 		self.setDefaultValue(group, id)
 
-	# Get parameter attribute
-	def getPar(self, group: str, id: str, attribute: str):
+	# Get parameter attribute(s)
+	def getPar(self, group: str, id: str, attribute: str | None = None):
 		if group not in self.parDef: raise KeyError("Unknown parameter group", group)
 		if id not in self.parDef[group]: raise KeyError("Unknown parameter id", id)
-		if attribute not in self.attributes: raise KeyError("Unknown attribute", attribute)
-		if attribute in self.parDef[group][id]:
+
+		if attribute is None:
+			return self.parDef[group][id]
+		elif attribute not in self.attributes:
+			raise KeyError("Unknown attribute", attribute)
+		elif attribute in self.parDef[group][id]:
 			return self.parDef[group][id][attribute]
 		else:
 			return self.defaults[attribute]
@@ -230,15 +243,21 @@ class TKConfigure:
 		self.set(id, value)
 
 	# Reset parameter value(s) to old values (if old value exists)
-	def undo(self, id: str | None = None):
+	def undo(self, groups: list = [], id: str | None = None):
 		if id is None:
-			for id in self.config:
-				self.undo(id)
-		else:
-			if id not in self.idList: raise KeyError("Unknown parameter id", id)
-			if id in self.config and 'oldValue' in self.config[id]:
-				self.config[id]['value'] = self.config[id]['oldValue']
-	
+			for i in self.config:
+				self.undo(groups, i)
+		elif id in self.config and (len(groups) == 0 or self.idList[id] in groups) and 'oldValue' in self.config[id]:
+			self.config[id]['value'] = self.config[id]['oldValue']
+
+	# Copy parameter values to old values. This is done automatically before an input mask is shown
+	def apply(self, groups: list = [], id: str | None = None):
+		if id is None:
+			for i in self.config:
+				self.apply(groups, i)
+		elif id in self.config and len(groups) == 0 or self.idList[id] in groups and 'value' in self.config[id]:
+			self.config[id]['oldValue'] = self.config[id]['value']
+
 	# Sync widget value(s) with current config value(s)
 	def syncWidget(self, id: str | None = None):
 		if id is None:
@@ -302,12 +321,17 @@ class TKConfigure:
 		return row
 
 	# Create the mask for all or some parameter groups, return row number of next free row
+	# Before the widgets are created, the current parameter values are saved as old values (for specified groups only).
+	# So every change can be reverted by calling undo()
 	def createMask(self, master, singlecol: bool = False, startrow: int = 0, padx: int = 0, pady: int = 0, groups: list = [],
 					groupwidth: int = 0, colwidth: tuple = (50.0, 50.0), *args, **kwargs):
 		row = startrow
-		groupList = self.parDef.keys() if len(groups) == 0 else groups
+		grpList = list(self.parDef.keys()) if len(groups) == 0 else groups
 
-		for g in groupList:
+		# Apply current parameter values
+		self.apply(grpList)
+
+		for g in grpList:
 			# Do not show a border for widgets without group name
 			border = 0 if g == '' else 2
 
@@ -334,7 +358,8 @@ class TKConfigure:
 	def showDialog(self, master, width: int = 0, height: int = 0, title: str = None, groupwidth=0, padx: int = 0, pady: int = 0, groups: list = [],
 					colwidth: tuple = (50.0, 50.0), *args, **kwargs) -> bool:
 		# Create a copy of the current configuration
-		newConfig = TKConfigure(self.getParameterDefinition(), self.getConfig())
+		newConfig = TKConfigureCopy(self)
+		# newConfig = TKConfigure(self.getParameterDefinition(), self.getConfig())
 
 		result = False
 
@@ -379,3 +404,5 @@ class TKConfigure:
 		if id in self.idList:
 			self.set(id, value)
 
+def TKConfigureCopy(config: TKConfigure) -> TKConfigure:
+	return TKConfigure(config.getParameterDefinition(), config.getConfig())
