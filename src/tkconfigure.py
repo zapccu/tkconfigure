@@ -43,6 +43,13 @@ class TKConfigure:
 
 	def __init__(self, parameterdefinition: dict | None = None, config: dict | None = None):
 
+		# Input types:
+		self.types = {
+			'int': int,
+			'float': float,
+			'str': str
+		}
+
 		# Allowed parameter definition keys. Can be enhanced by method addKey()
 		self.attributes = [ 'inputType', 'valRange', 'initValue', 'widget', 'label', 'width', 'widgetAttr' ]
 
@@ -69,6 +76,43 @@ class TKConfigure:
 
 		# Created widgets: ['<id>'] -> <widget>
 		self.widget = {}
+
+	# Validate parameter defintion
+	def _validateParDef(self, id):
+		if id not in self.idList:
+			raise ValueError("Unknown parameter id", id)
+		parCfg = self.getPar(self.idList[id], id)
+		if parCfg['inputType'] not in self.types:
+			raise TypeError("Unknown inputType for parameter", id)
+		if type(parCfg['initValue']) is not self.types[parCfg['inputType']]:
+			raise TypeError("Type of initValue doesn't match inputType for parameter", id)
+		if parCfg['widget'] not in _TKCWidget._WIDGETS_:
+			raise ValueError("Unknown widget type for parameter", id)
+		if type(parCfg['valRange']) is tuple:
+			if len(parCfg['valRange']) < 2 or len(parCfg['valRange']) > 3:
+				raise ValueError("valRange tuple must have 2 or 3 values for parameter", id)
+			if parCfg['inputType'] == 'str':
+				raise TypeError("Unsupported inputType for valRange tuple for parameter", id)
+			elif parCfg['initValue'] < parCfg['valRange'][0] or parCfg['initValue'] > parCfg['valRange'][1]:
+				raise ValueError("initValue out of valRange for parameter", id)
+		elif type(parCfg['valRange']) is list:
+			if len(parCfg['valRange']) == 0:
+				raise ValueError("valRange list must not be empty for parameter", id)
+			if parCfg['inputType'] == 'str' and parCfg['initValue'] not in parCfg['valRange']:
+				raise ValueError("initValue is not part of valRange for parameter", id)
+			elif parCfg['inputType'] == 'int' and (parCfg['initValue'] < 0 or parCfg['initValue'] > len(parCfg['valRange'])):
+				raise IndexError("initValue out of valRange for parameter", id)
+			elif parCfg['inputType'] == 'float':
+				raise TypeError("Unsupported inputType for valRange list for parameter", id)
+
+	# Validate parameter value
+	def _validateValue(self, id: str, value):
+		if id not in self.idList:
+			raise ValueError("Unknown parameter id", id)
+		parCfg = self.getPar(self.idList[id], id)
+		if type(value) is self.types[parCfg['inputType']]:
+			raise TypeError("Type of value doesn't match input type of parameter", id)
+		
 
 	# Set parameter value to default
 	def setDefaultValue(self, group: str, id: str):
