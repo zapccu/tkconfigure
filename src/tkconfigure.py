@@ -14,8 +14,8 @@ from typing import Literal
 #
 # Parameters:
 #
-#   parameterDefinition - dictionary with definition of config parameters
-#   configValues - dictionary with parameter values
+#   parameterDefinition - Dictionary with definition of config parameters
+#   configValues -        Dictionary with parameter values
 #
 # Parameter definition dictionary:
 #
@@ -30,11 +30,29 @@ from typing import Literal
 #    ... # Further groups, use "" for no-group
 # }
 #
+# Parameter attributes:
+#
+#   inputType -  The input type, either 'int', 'float' or 'str',#
+#                default = 'str'
+#   initValue -  Initial parameter value, type must match inputType,
+#                default = None
+#   valRange -   Depends on inputType, default = None (no input validation)
+#                  'str': list of valid strings
+#                  'int','float': tuple with value range (from, to [,increment])
+#   widget -     The type of the input widget, either 'TKCEntry', 'TKCSpinbox',
+#                'TKCCheckbox', 'TKCListbox'. Default = 'TKCEntry'
+#   label -      Text placed in front of the widget, default = '' (no text)
+#   width -      Width of the input widget in characters, default = 20
+#   widgetAttr - Dictionary with additional TKInter widget attributes,
+#                default = {}
+#
 # Parameter value dictionary:
 #
 # {
-#    "parameter-name": parameter-value,
-#    ...
+#    "parameter-name": {
+#       "value": parameter-value
+#    },
+#    ... # Further parameter values
 # }
 #
 ###############################################################################
@@ -77,22 +95,43 @@ class TKConfigure:
 		# Created widgets: ['<id>'] -> <widget>
 		self.widget = {}
 
+	# Validate group and/or id
+	def _validateGroupId(self, group: str | None = None, id: str | None = None):
+		if group is not None and group not in self.parDef:
+			raise ValueError("Unknown group", group)
+		if id is not None and id not in self.idList:
+			raise ValueError("Unknown parameter id", id)
+		
 	# Validate parameter defintion
 	def _validateParDef(self, id):
-		if id not in self.idList:
-			raise ValueError("Unknown parameter id", id)
+		if len(self.parDef.keys()) == 0:
+			raise ValueError("No parameter definition found")
+		self._validateGroupId(id=id)
 		parCfg = self.getPar(self.idList[id], id)
+
+		# Validate attributes
+		for a in parCfg:
+			if a not in self.attributes:
+				raise ValueError("Unknown parameter attribute", id, a)
+
+		# Validate the inputType
 		if parCfg['inputType'] not in self.types:
 			raise TypeError("Unknown inputType for parameter", id)
+		
+		# initValue must match inputType
 		if type(parCfg['initValue']) is not self.types[parCfg['inputType']]:
 			raise TypeError("Type of initValue doesn't match inputType for parameter", id)
+		
+		# Validate widget type
 		if parCfg['widget'] not in _TKCWidget._WIDGETS_:
 			raise ValueError("Unknown widget type for parameter", id)
+		
+		# Validate valRange / initValue / inputType
 		if type(parCfg['valRange']) is tuple:
 			if len(parCfg['valRange']) < 2 or len(parCfg['valRange']) > 3:
 				raise ValueError("valRange tuple must have 2 or 3 values for parameter", id)
 			if parCfg['inputType'] == 'str':
-				raise TypeError("Unsupported inputType for valRange tuple for parameter", id)
+				raise TypeError("Unsupported inputType 'str' for valRange tuple for parameter", id)
 			elif parCfg['initValue'] < parCfg['valRange'][0] or parCfg['initValue'] > parCfg['valRange'][1]:
 				raise ValueError("initValue out of valRange for parameter", id)
 		elif type(parCfg['valRange']) is list:
@@ -106,50 +145,47 @@ class TKConfigure:
 				raise TypeError("Unsupported inputType for valRange list for parameter", id)
 
 	# Validate parameter value
-	def _validateValue(self, id: str, value):
-		if id not in self.idList:
-			raise ValueError("Unknown parameter id", id)
+	def _validateValue(self, id: str, value, bCast = False):
+		self._validateGroupId(id=id)
 		parCfg = self.getPar(self.idList[id], id)
+
+		# Type of value must match inputType
 		if type(value) is self.types[parCfg['inputType']]:
 			raise TypeError("Type of value doesn't match input type of parameter", id)
 		
+		if bCast:
+			if type(value) is int and parCfg['inputType'] == 'float':
+				value = float(value)
+			elif type(value) is float and parCfg['inputType'] == 'int':
+				value = int(value)
+
+		# Validate valRange / value
+		if type(parCfg['valRange']) is tuple and value < parCfg['valRange'][0] or value > parCfg['valRange'][1]:
+			raise ValueError("Value not in valRange", id, value)
+		elif type(parCfg['valRange']) is list and value not in parCfg['valRange']:
+			raise ValueError("Value not in valRange list", id, value)
+		
+		return value
+	
+	# Validate configuration / parameter values
+	def _validateConfig(self, config: dict):
+		for id in config:
+			self._validateGroupId(id=id)
+			if 'value' not in config[id]:
+				raise ValueError("Missing paramter value for parameter", id)
+			for a in config[id]:
+				if a not in ['value', 'oldValue']:
+					raise KeyError("Attribute not allowed for parameter", id, a)
+			self._validateValue(id, config[id]['value'])
 
 	# Set parameter value to default
 	def setDefaultValue(self, group: str, id: str):
-		if group not in self.parDef: raise KeyError("Unknown parameter group", group)
-		if id not in self.parDef[group]: raise KeyError("Unknown parameter id", id)
+		self._validateGroupId(group=group, id=id)
 
-		inputType = self.getPar(group, id, 'inputType')
 		initValue = self.getPar(group, id, 'initValue')
-		valRange  = self.getPar(group, id, 'valRange')
-		nInitValue = initValue
 
-		# Validate inputType and initValue
-		if inputType == 'str' and type(initValue) is not str:
-			raise TypeError("Type of initValue doesn't match inputType for parameter", id)
-		elif inputType == 'int' and type(initValue) is float:
-			nInitValue = int(initValue)
-		elif inputType == 'float' and type(initValue) is int:
-			nInitValue = float(initValue)
-			
-		# Validate initValue and valRange
-		if type(valRange) is list:
-			if inputType != 'int' and inputType != 'str':
-				raise ValueError("inputType not allowed for valRange list for parametet", id)
-			if type(initValue) is str and initValue not in valRange:
-				raise ValueError("initValue not in valRange for parameter", id)
-			elif type(initValue) is int and (initValue < 0 or initValue >= len(valRange)):
-				raise IndexError("initValue not in valRange for parameter", id)
-			elif type(initValue) is float or initValue is None:
-				raise TypeError("Type of initValue doesn't match inputType for parameter", id)
-		elif type(valRange) is tuple:
-			if type(initValue) is str:
-				raise TypeError("initValue of parameter", id)
-			elif initValue < valRange[0] or initValue > valRange[1]:
-				raise ValueError("initValue out of valRange for parameter", id)
-
-		if type(nInitValue) is not type(initValue):
-			self.parDef[group][id]['initValue'] = nInitValue
+		# Validate inputType and initValue, cast type for int or float
+		nInitValue = self._validateValue(initValue, bCast=True)
 		self.set(id, nInitValue)
 	
 	# Set all parameters of current config to default values
@@ -162,23 +198,29 @@ class TKConfigure:
 	# Set parameter definition and set config values to default values
 	def setParameterDefinition(self, parameterDefinition: dict, config: dict | None = None):
 		self.idList = {}
+		self.parDef = {}
 
-		# Validate parameter definition
+		# Complete parameter definition. Add defaults for missing attributes
 		for group in parameterDefinition:
 			for id in parameterDefinition[group]:
 				if id in self.idList: raise KeyError("Duplicate parameter id", id)
 				self.idList[id] = group
-				for k in parameterDefinition[group][id]:
-					if k not in self.attributes:
-						raise KeyError("Unknown parameter attribute", k)
-					if k == 'widget' and parameterDefinition[group][id][k] not in _TKCWidget._WIDGETS_:
-						raise ValueError("Unknown widget type", parameterDefinition[group][id][k])
+				for a in self.defaults:
+					if a not in parameterDefinition[group][id]:
+						parameterDefinition[group][id] = self.defaults[a]
 
-		self.parDef = parameterDefinition
+		# Validate parameter definition (will raise exceptions on error)
+		self._validateParDef(parameterDefinition)
 
+		# Store parameter defintion
+		self.parDef.update(parameterDefinition)
+
+		# Update parameter values
 		if config is None:
 			self.resetConfigValues()
 		else:
+			# Validate parameter values (will raise excpetions on error)
+			self._validateConfig(config)
 			self.setConfig(config)
 
 	# Get current parameter definition as dictionary:
@@ -194,12 +236,12 @@ class TKConfigure:
 
 	# Get parameter group defintion as dictionary
 	def getGroupDefinition(self, group: str) -> dict:
-		if group is None or group not in self.parDef: raise KeyError("Unknown parameter group", group)
+		self._validateGroupId(group=group)
 		return self.parDef[group]
 	
 	# Get parameter id definition as dictionary
 	def getIdDefinition(self, id: str) -> dict:
-		if id is None or id not in self.idList: raise KeyError("Unknown parameter id", id)
+		self._validateGroupId(id=id)
 		return self.parDef[self.idList[id]][id]
 
 	# Add new key to parameter definition
@@ -227,8 +269,7 @@ class TKConfigure:
 
 	# Get parameter attribute(s)
 	def getPar(self, group: str, id: str, attribute: str | None = None):
-		if group not in self.parDef: raise KeyError("Unknown parameter group", group)
-		if id not in self.parDef[group]: raise KeyError("Unknown parameter id", id)
+		self._validateGroupId(group=group, id=id)
 
 		if attribute is None:
 			return self.parDef[group][id]
@@ -241,23 +282,23 @@ class TKConfigure:
 
 	# Set current config from dictionary
 	def setConfig(self, config: dict):
-		for id in config:
-			if id not in self.idList: raise KeyError("Unknown parameter id", id)
-		self.config = config
+		self._validateConfig(config)
+		self.config = {}
+		self.config.update(config)
 
 	# Get current config as dictionary
 	def getConfig(self) -> dict:
 		return self.config
 
 	# Get parameter value
-	def get(self, id: str, returnDefault: bool = True):
-		if id not in self.idList: raise KeyError("Unknown parameter id", id)
+	def get(self, id: str, returndefault: bool = True):
+		self._validateGroupId(id=id)
 		if id in self.config and 'value' in self.config[id]:
 			return self.config[id]['value']
-		elif returnDefault:
+		elif returndefault:
 			return self.getPar(self.idList[id], id, 'initValue')
 		else:
-			raise ValueError("No value assigned parameter", id)
+			raise ValueError("No value assigned to parameter", id)
 		
 	# Get parameter id list
 	def getIds(self) -> list:
@@ -275,8 +316,9 @@ class TKConfigure:
 		return self.get(id)
 
 	# Set config value if new value is different from current value
-	def set(self, id: str, newValue):
-		if id not in self.idList: raise KeyError("Unknown parameter id", id)
+	def set(self, id: str, value):
+		newValue = self._validateValue(newValue, bCast=True)
+
 		if id not in self.config or 'value' not in self.config[id]:
 			self.config.update({ id: { 'oldValue': newValue, 'value': newValue }})
 		else:
@@ -330,6 +372,7 @@ class TKConfigure:
 
 	# Create widgets for specified parameter group, return number of next free row
 	def createWidgets(self, master, group: str = '', singlecol: bool = False, startrow: int = 0, padx=0, pady=0, *args, **kwargs):
+		self._validateGroupId(group=group)
 		row = startrow
 
 		for id in self.parDef[group]:
@@ -373,9 +416,6 @@ class TKConfigure:
 					groupwidth: int = 0, colwidth: tuple = (50.0, 50.0), *args, **kwargs):
 		row = startrow
 		grpList = list(self.parDef.keys()) if len(groups) == 0 else groups
-
-		# Apply current parameter values
-		self.apply(grpList)
 
 		for g in grpList:
 			# Do not show a border for widgets without group name
