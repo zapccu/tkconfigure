@@ -68,7 +68,8 @@ class _TKCWidget:
 			else:
 				return 0 <= int(value) < len(self.valRange)
 
-	def _validate(self, value) -> bool:
+	def _validate(self, value = None) -> bool:
+		if value is None: value = self.textVar.get()
 		if self.inputType == 'str' and type(self.valRange) is list:
 			return value in self.valRange
 		
@@ -82,13 +83,17 @@ class _TKCWidget:
 			return False
 		
 	def _update(self, event = None):
-		value = self._getWidgetValue()
-		if self._checkRange(value):
-			# Inform app about new widget value
-			if value != self.var:
-				self.var = value
-				self.onChange(self.id, value)
-		elif self.initValue is not None:
+		if self._validate():
+			value = self._getWidgetValue()
+			if self._checkRange(value):
+				if value != self.var:
+					# Inform app about new widget value
+					self.var = value
+					self.onChange(self.id, value)
+				return
+
+		# on error set widget value to initValue
+		if self.initValue is not None:
 			self.set(self.initValue)
 
 	# Return the current value of a widget. By default this is the value of textVar.

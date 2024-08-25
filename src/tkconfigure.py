@@ -103,16 +103,11 @@ class TKConfigure:
 			raise ValueError("Unknown parameter id", id)
 		
 	# Validate parameter defintion
-	def _validateParDef(self, id):
-		if len(self.parDef.keys()) == 0:
-			raise ValueError("No parameter definition found")
-		self._validateGroupId(id=id)
-		parCfg = self.getPar(self.idList[id], id)
-
+	def _validateParDef(self, parCfg: dict):
 		# Validate attributes
 		for a in parCfg:
 			if a not in self.attributes:
-				raise ValueError("Unknown parameter attribute", id, a)
+				raise ValueError(f"Unknown attribute {a} for parameter", id)
 
 		# Validate the inputType
 		if parCfg['inputType'] not in self.types:
@@ -150,8 +145,8 @@ class TKConfigure:
 		parCfg = self.getPar(self.idList[id], id)
 
 		# Type of value must match inputType
-		if type(value) is self.types[parCfg['inputType']]:
-			raise TypeError("Type of value doesn't match input type of parameter", id)
+		if type(value) is not self.types[parCfg['inputType']]:
+			raise TypeError(f"Type of value {value} doesn't match input type {parCfg['inputType']} of parameter", id)
 		
 		if bCast:
 			if type(value) is int and parCfg['inputType'] == 'float':
@@ -160,10 +155,13 @@ class TKConfigure:
 				value = int(value)
 
 		# Validate valRange / value
-		if type(parCfg['valRange']) is tuple and value < parCfg['valRange'][0] or value > parCfg['valRange'][1]:
-			raise ValueError("Value not in valRange", id, value)
-		elif type(parCfg['valRange']) is list and value not in parCfg['valRange']:
-			raise ValueError("Value not in valRange list", id, value)
+		if type(parCfg['valRange']) is tuple and (value < parCfg['valRange'][0] or value > parCfg['valRange'][1]):
+			raise ValueError(f"Value {value} not in valRange for parameter", id)
+		elif type(parCfg['valRange']) is list:
+			if type(value) is str and value not in parCfg['valRange']:
+				raise ValueError(f"Value {value} not in valRange list for parameter", id)
+			if type(value) is int and (value < 0 or value >= len(parCfg['valRange'])):
+				raise IndexError(f"Value {value} is not a valid valRange index for parameter", id)
 		
 		return value
 	
@@ -172,10 +170,10 @@ class TKConfigure:
 		for id in config:
 			self._validateGroupId(id=id)
 			if 'value' not in config[id]:
-				raise ValueError("Missing paramter value for parameter", id)
+				raise ValueError("Missing parameter 'value' for parameter", id)
 			for a in config[id]:
 				if a not in ['value', 'oldValue']:
-					raise KeyError("Attribute not allowed for parameter", id, a)
+					raise KeyError(f"Attribute {a} not allowed for parameter", id)
 			self._validateValue(id, config[id]['value'])
 
 	# Set parameter value to default
@@ -185,7 +183,7 @@ class TKConfigure:
 		initValue = self.getPar(group, id, 'initValue')
 
 		# Validate inputType and initValue, cast type for int or float
-		nInitValue = self._validateValue(initValue, bCast=True)
+		nInitValue = self._validateValue(id, initValue, bCast=True)
 		self.set(id, nInitValue)
 	
 	# Set all parameters of current config to default values
@@ -207,10 +205,10 @@ class TKConfigure:
 				self.idList[id] = group
 				for a in self.defaults:
 					if a not in parameterDefinition[group][id]:
-						parameterDefinition[group][id] = self.defaults[a]
+						parameterDefinition[group][id][a] = self.defaults[a]
 
-		# Validate parameter definition (will raise exceptions on error)
-		self._validateParDef(parameterDefinition)
+				# Validate parameter definition (will raise exceptions on error)
+				self._validateParDef(parameterDefinition[group][id])
 
 		# Store parameter defintion
 		self.parDef.update(parameterDefinition)
@@ -317,7 +315,7 @@ class TKConfigure:
 
 	# Set config value if new value is different from current value
 	def set(self, id: str, value):
-		newValue = self._validateValue(newValue, bCast=True)
+		newValue = self._validateValue(id, value, bCast=True)
 
 		if id not in self.config or 'value' not in self.config[id]:
 			self.config.update({ id: { 'oldValue': newValue, 'value': newValue }})
