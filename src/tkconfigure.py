@@ -103,7 +103,7 @@ class TKConfigure:
 			raise ValueError("Unknown parameter id", id)
 		
 	# Validate parameter defintion
-	def _validateParDef(self, parCfg: dict):
+	def _validateParDef(self, id: str, parCfg: dict):
 		# Validate attributes
 		for a in parCfg:
 			if a not in self.attributes:
@@ -208,7 +208,7 @@ class TKConfigure:
 						parameterDefinition[group][id][a] = self.defaults[a]
 
 				# Validate parameter definition (will raise exceptions on error)
-				self._validateParDef(parameterDefinition[group][id])
+				self._validateParDef(id, parameterDefinition[group][id])
 
 		# Store parameter defintion
 		self.parDef.update(parameterDefinition)

@@ -78,13 +78,22 @@ class App:
 			"Flags": {
 				'distance': {
 					'inputType': 'int',
+					'valRange':  (0, 1),
 					'initValue': 0,
 					'widget':    'TKCCheckbox',
 				},
 				'potential': {
 					'inputType': 'int',
-					'initValue': 0,
+					'valRange':  (10, 11),
+					'initValue': 11,
 					'widget':    'TKCCheckbox'
+				},
+				'colorMapping': {
+					'inputType': 'int',
+					'valRange':  [ 'Modulo', 'Linear' ],
+					'initValue': 0,
+					'widget':    'TKCRadiobuttons',
+					'label':     'Color mapping'
 				}
 			}
 		})
