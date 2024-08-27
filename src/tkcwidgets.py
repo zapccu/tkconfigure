@@ -11,7 +11,7 @@ class _TKCWidget:
 
 	_WIDGETS_ = [ 'TKCSpinbox', 'TKCEntry', 'TKCListbox', 'TKCCheckbox', 'TKCRadiobuttons', 'TKCFlags' ]
 
-	def __init__(self, parent, id: str, inputType: Literal['int','float','str','bits'] = 'str',
+	def __init__(self, parent, id: str, inputType: Literal['int','float','str','bits','complex'] = 'str',
 			  valRange: tuple = None, initValue = None, onChange = None):
 		self.parent    = parent
 		self.id        = id
@@ -32,7 +32,8 @@ class _TKCWidget:
 	@staticmethod
 	def _checkParameters(inputType: str, valRange: list | tuple, vrMandatory: bool = False):
 		if inputType is None: raise ValueError('inputType == None')
-		if inputType not in ['int', 'float', 'str', 'bits']: raise ValueError(inputType)
+		if inputType not in ['int', 'float', 'str', 'bits', 'complex']:
+			raise ValueError(f"Invalid inputType {inputType}")
 		
 		if valRange is None:
 			if vrMandatory: raise ValueError('valRange == None')
@@ -48,13 +49,12 @@ class _TKCWidget:
 		elif type(valRange) is not tuple and type(valRange) is not list:
 			raise TypeError('valRange', valRange, type(valRange))
 
+	# Check if value is in valRange
 	def _checkRange(self, value) -> bool:
 		if self.valRange is None or len(self.valRange) < 2: return True
 		if type(self.valRange) is tuple:
-			if self.inputType == 'int':
-				return self.valRange[0] <= int(value) <= self.valRange[1]
-			elif self.inputType == 'float':
-				return self.valRange[0] <= float(value) <= self.valRange[1]
+			if self.inputType in ['int','float','complex']:
+				return self.valRange[0] <= value <= self.valRange[1]
 			else:
 				return False
 		elif type(self.valRange) is list:
@@ -62,9 +62,12 @@ class _TKCWidget:
 				return value in self.valRange
 			elif self.inputType == 'bits':
 				return 0 <= int(value) < 2**len(self.valRange)
-			else:
+			elif self.inputType in ['int','float']:
 				return 0 <= int(value) < len(self.valRange)
+			else:
+				return False
 
+	# Validate value
 	def _validate(self, value) -> bool:
 		if self.inputType == 'str' and type(self.valRange) is list:
 			return value in self.valRange		
@@ -73,10 +76,13 @@ class _TKCWidget:
 				v = int(value)
 			elif self.inputType == 'float':
 				v = float(value)
+			elif self.inputType == 'complex':
+				v = complex(value)
 			return True
 		except ValueError:
 			return False
-		
+	
+	# Called when widget value has been changed
 	def _update(self, event = None):
 		value = self._getWidgetValue()
 		if self._validate(value) and self._checkRange(value):
@@ -219,10 +225,10 @@ class TKCSpinbox(_TKCWidget, tk.Spinbox):
 
 class TKCEntry(_TKCWidget, tk.Entry):
 
-	def __init__(self, parent, id: str, inputType: Literal['int','float','str'] = 'str',
+	def __init__(self, parent, id: str, inputType: Literal['int','float','str','complex'] = 'str',
 				valRange: tuple = None, initValue = None, onChange = None, *args, **kwargs):
 		# Check parameters
-		if inputType not in ['int','float','str']:
+		if inputType not in ['int','float','str','complex']:
 			raise ValueError(f"{id}: Invalid inputType {inputType}")
 		_TKCWidget._checkParameters(inputType, valRange)
 
@@ -240,6 +246,8 @@ class TKCEntry(_TKCWidget, tk.Entry):
 			return int(self.enVar.get())
 		elif self.inputType == 'float':
 			return float(self.enVar.get())
+		elif self.inputType == 'complex':
+			return complex(self.enVar.get())
 		else:
 			return self.enVar.get()
 	

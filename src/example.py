@@ -11,7 +11,7 @@ class App:
 
 		# Create a window
 		self.master = Tk()
-		self.master.geometry("600x600")
+		self.master.geometry("600x800")
 		self.master.title("TKConfigure Sample App")
 
 		# TKC configuration
@@ -25,6 +25,14 @@ class App:
 			},
 			# First group 'Calculation settings'
 			'Calculation settings': {
+				# Complex parameter represented by a TKCEntry widget
+				'corner': {
+					'inputType': 'complex',
+					'initValue': complex(-2.25, -1.5),
+					'widget':    'TKCEntry',
+					'label':     'Complex corner',
+					'width':     10
+				},
 				# Integer parameter represented by a TKCSpinbox widget
 				'maxIter': {
 					'inputType': 'int',               # Input type ('int', 'float' or 'str')
@@ -91,7 +99,7 @@ class App:
 				'calcOptions': {
 					'inputType': 'bits',
 					'valRange':  [ 'Interations', 'Potential', 'Distance' ],
-					'initValue': 0,
+					'initValue': 5,
 					'widget':    'TKCFlags',
 					'widgetAttr': {
 						'text': 'Calculation flags'

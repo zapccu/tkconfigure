@@ -32,7 +32,7 @@ from typing import Literal
 #
 # Parameter attributes:
 #
-#   inputType -  The input type, either 'int', 'float', 'str' or 'bits'
+#   inputType -  The input type, either 'int', 'float', 'str', 'bits', 'complex'
 #                default = 'str'
 #   initValue -  Initial parameter value, type must match inputType,
 #                default = None
@@ -64,7 +64,7 @@ class TKConfigure:
 	def __init__(self, parameterdefinition: dict | None = None, config: dict | None = None):
 
 		# Input types:
-		self.types = { 'int': int, 'float': float, 'str': str, 'bits': int }
+		self.types = { 'int': int, 'float': float, 'str': str, 'bits': int, 'complex': complex }
 
 		# Allowed parameter definition keys. Can be enhanced by method addKey()
 		self.attributes = [ 'inputType', 'valRange', 'initValue', 'widget', 'label', 'width', 'widgetAttr' ]
@@ -136,8 +136,8 @@ class TKConfigure:
 				raise IndexError("initValue out of valRange for parameter", id)
 			elif parCfg['inputType'] == 'bits' and (parCfg['initValue'] < 0 or parCfg['initValue'] >= 2**len(parCfg['valRange'])):
 				raise IndexError("initValue out of valRange for parameter", id)
-			elif parCfg['inputType'] == 'float':
-				raise TypeError("Unsupported inputType for valRange list for parameter", id)
+			elif parCfg['inputType'] in ['float', 'complex']:
+				raise TypeError(f"Unsupported inputType {parCfg['inputType']}for valRange list for parameter {id}")
 
 	# Validate parameter value
 	def _validateValue(self, id: str, value, bCast = False):
@@ -153,6 +153,8 @@ class TKConfigure:
 				value = float(value)
 			elif type(value) is float and parCfg['inputType'] == 'int':
 				value = int(value)
+			elif (type(value) is int or type(value) is float) and parCfg['inputType'] == 'complex':
+				value = complex(value)
 
 		# Validate valRange / value
 		if type(parCfg['valRange']) is tuple and (value < parCfg['valRange'][0] or value > parCfg['valRange'][1]):
