@@ -78,7 +78,7 @@ class App:
 			"Flags": {
 				'distance': {
 					'inputType': 'int',
-					'valRange':  (0, 1),
+					'valRange':  (0, 1),           # For checkbuttons: tuple(offvalue, onvalue)
 					'initValue': 0,
 					'widget':    'TKCCheckbox',
 				},

@@ -17,11 +17,10 @@ class _TKCWidget:
 		self.inputType = inputType
 		self.onChange  = onChange
 		self.valRange  = valRange
-		self.textVar   = tk.StringVar()
 
-		# Set var and textVar to initial value
+		# Set widget to initial value
 		if not self._validate(initValue):
-			raise ValueError(id, 'inputType', inputType, 'initValue', initValue, 'valRange', valRange)
+			raise ValueError(f"{id}: inputType={inputType}, initValue={initValue}, valRange={valRange}")
 		self.initValue = initValue
 		self.set(initValue)
 
@@ -77,40 +76,37 @@ class _TKCWidget:
 		
 	def _update(self, event = None):
 		value = self._getWidgetValue()
-		if self._validate(value):
-			if self._checkRange(value):
-				if value != self.var:
-					# Inform app about new widget value
-					self.var = value
-					self.onChange(self.id, value)
-				return
+		if self._validate(value) and self._checkRange(value):
+			if value != self.var:
+				# Inform app about new widget value
+				self.var = value
+				self.onChange(self.id, value)
+			return
 
 		# on error set widget value to initValue
 		if self.initValue is not None:
 			self.set(self.initValue)
 
-	# Return the current value of a widget. By default this is the value of textVar.
-	# Can be overwritten in child classes to return a different value, i.e. the index
-	# of the selected entry of a TKCListbox.
-	# This function is called by _update() to retrieve the new widget value.
+	# Return the current value of a widget. By default this function has no implementation.
+	# Function must be overwritten in child classes to return a valid value with the
+	# appropriate type, i.e. the index of the selected entry of a TKCListbox.
+	# This function is called by _update() to retrieve the current widget value.
 	def _getWidgetValue(self):
-		if self.inputType == 'int':
-			return int(self.textVar.get())
-		elif self.inputType == 'float':
-			return float(self.textVar.get())
-		else:
-			return self.textVar.get()
-		
+		pass
+	
+	# Set the widget value. By default this function has no implementation.
+	# Function must be overwritten in child classed to set a widget to the specified value.
+	# This function is called by set() to update a widget value.
 	def _setWidgetValue(self, value):
-		if self._validate(value) and self._checkRange(value):
-			self.textVar.set(str(value))
-		else:
-			raise ValueError(value)
+		pass
 
 	def get(self):
 		return self.var
 	
 	def getStr(self) -> str:
+		return str(self.var)
+	
+	def __str__(self):
 		return str(self.var)
 	
 	def set(self, value):
@@ -160,6 +156,9 @@ class TKCSpinbox(_TKCWidget, tk.Spinbox):
 		# Check parameters
 		_TKCWidget._checkParameters(inputType, valRange, vrMandatory=True)
 
+		# Spinbox value is stored in a text variable and casted to input type by function _getWidgetValue()
+		self.sbVar = tk.StringVar()
+
 		if type(valRange) is tuple:
 			if inputType == 'str': raise TypeError(valRange)
 			self.increment = valRange[2] if len(valRange) == 3 else 1
@@ -170,12 +169,20 @@ class TKCSpinbox(_TKCWidget, tk.Spinbox):
 		_TKCWidget.__init__(self, parent, id, inputType=inputType, valRange=valRange, initValue=initValue, onChange=onChange)
 
 		self.config(
-			textvariable=self.textVar
-		)
-
-		self.config(
+			textvariable=self.sbVar,
 			command=self._update,	# Spinner control pressed
 		)
+
+	def _getWidgetValue(self):
+		if self.inputType == 'int':
+			return int(self.sbVar.get())
+		elif self.inputType == 'float':
+			return float(self.sbVar.get())
+		else:
+			return self.sbVar.get()
+		
+	def _setWidgetValue(self, value):
+		self.sbVar.set(str(value))
 
 
 ###############################################################################
@@ -212,13 +219,25 @@ class TKCEntry(_TKCWidget, tk.Entry):
 		# Check parameters
 		_TKCWidget._checkParameters(inputType, valRange)
 
+		self.enVar = tk.StringVar()
+
 		tk.Entry.__init__(self, parent, *args, **kwargs)
 		_TKCWidget.__init__(self, parent, id, inputType=inputType, valRange=valRange, initValue=initValue, onChange=onChange)
 
 		self.config(
-			textvariable=self.textVar
+			textvariable=self.enVar
 		)
-
+	
+	def _getWidgetValue(self):
+		if self.inputType == 'int':
+			return int(self.enVar.get())
+		elif self.inputType == 'float':
+			return float(self.enVar.get())
+		else:
+			return self.enVar.get()
+	
+	def _setWidgetValue(self, value):
+		self.enVar.set(str(value))
 
 
 ###############################################################################
@@ -255,13 +274,12 @@ class TKCListbox(_TKCWidget, ttk.Combobox):
 		# Check parameters
 		_TKCWidget._checkParameters(inputType, valRange, vrMandatory=True)
 
+		self.lbVar = tk.StringVar()
+
 		ttk.Combobox.__init__(self, parent, state='readonly', values=valRange, *args, **kwargs)
 		_TKCWidget.__init__(self, parent, id, inputType=inputType, valRange=valRange, initValue=initValue, onChange=onChange)
 
-		self.config(
-			textvariable=self.textVar
-		)
-
+		self.config(textvariable=self.lbVar)
 		self.bind("<<ComboboxSelected>>", self._update)
 
 	def _getWidgetValue(self):
@@ -270,29 +288,26 @@ class TKCListbox(_TKCWidget, ttk.Combobox):
 		elif self.inputType == 'float':
 			return float(self.current())
 		else:
-			return self.textVar.get()
+			return self.lbVar.get()
 	
 	def _setWidgetValue(self, value):
-		if type(value) is str:
-			self.textVar.set(value)
-		elif type(value) is int:
-			self.current(newindex=value)
-		elif type(value) is float:
-			self.current(newindex=int(value))
+		if type(value) is int or type(value) is float:
+			self.lbVar.set(self.valRange[value])
 		else:
-			raise TypeError(value)
+			self.lbVar.set(str(value))
 
 class TKCCheckbox(_TKCWidget, tk.Checkbutton):
 		
 	def __init__(self, parent, id: str, inputType: Literal['int'] = 'int',
 				valRange = None, initValue = 0, onChange = None, *args, **kwargs):
 		# Check parameters
+		if inputType != 'int':
+			raise ValueError(f"{id}: Invalid inputType {inputType}. Only 'int' supported by TKCCheckbox")
 		_TKCWidget._checkParameters(inputType, valRange)
 
 		self.intVar = tk.IntVar()
 
-#		tk.Checkbutton.__init__(self, parent, *args, **kwargs)
-		tk.Checkbutton.__init__(self, parent)
+		tk.Checkbutton.__init__(self, parent, *args, **kwargs)
 		_TKCWidget.__init__(self, parent, id, inputType=inputType, valRange=valRange, initValue=initValue, onChange=onChange)
 
 		self.config(
@@ -308,27 +323,28 @@ class TKCCheckbox(_TKCWidget, tk.Checkbutton):
 		return self.intVar.get()
 	
 	def _setWidgetValue(self, value):
-		self.intVar.set(value)
+		if type(value) is float or type(value) is int:
+			self.intVar.set(int(value))
+		else:
+			raise TypeError(f"{id}: inputType={self.inputType}, value={value}")
 
 class TKCRadiobuttons(_TKCWidget, tk.LabelFrame):
 
 	def __init__(self, parent, id: str, inputType: Literal['int'] = 'int',
 				valRange = None, initValue = 0, onChange = None, *args, **kwargs):
 		# Check parameters
-		_TKCWidget._checkParameters(inputType, valRange)
-
+		if inputType != 'int':
+			raise ValueError(f"{id}: Invalid inputType {inputType}. Only 'int' supported by TKCRadiobuttons")
 		if type(valRange) is not list or len(valRange) == 0:
 			raise TypeError("valRange is not a list or list is empty")
+		_TKCWidget._checkParameters(inputType, valRange)
 
-		self.intVar = tk.IntVar()
+		self.rbVar = tk.IntVar()
 
 		tk.LabelFrame.__init__(self, parent)
 		_TKCWidget.__init__(self, parent, id, inputType=inputType, valRange=valRange, initValue=initValue, onChange=onChange)
 
-		self.config(
-			text=id
-		)
-
+		self.config(text=id)
 		self.rButtons = []
 
 		r = 0
@@ -338,8 +354,7 @@ class TKCRadiobuttons(_TKCWidget, tk.LabelFrame):
 				text=rb,
 				anchor='w',
 				command=self._update,
-				textvariable='',
-				variable=self.intVar,
+				variable=self.rbVar,
 				value=r
 			)
 			btn.grid(row=r, column=0)
@@ -347,42 +362,41 @@ class TKCRadiobuttons(_TKCWidget, tk.LabelFrame):
 			r += 1
 
 	def _getWidgetValue(self):
-		return self.intVar.get()
+		return self.rbVar.get()
 	
 	def _setWidgetValue(self, value):
-		self.intVar.set(value)
+		if type(value) is float or type(value) is int:
+			self.rbVar.set(int(value))
+		else:
+			raise TypeError(f"{id}: inputType={self.inputType}, value={value}")
 
 class TKCFlags(_TKCWidget, tk.LabelFrame):
 
 	def __init__(self, parent, id: str, inputType: Literal['int'] = 'int',
 				valRange = None, initValue = 0, onChange = None, *args, **kwargs):
 		# Check parameters
-		_TKCWidget._checkParameters(inputType, valRange)
-
+		if inputType != 'int':
+			raise ValueError(f"{id}: Invalid inputType {inputType}. Only 'int' supported by TKCFlags")
 		if type(valRange) is not list or len(valRange) == 0:
 			raise TypeError("valRange is not a list or list is empty")
+		_TKCWidget._checkParameters(inputType, valRange)
 
 		self.cVars = []
-
-		tk.LabelFrame.__init__(self, parent)
-		_TKCWidget.__init__(self, parent, id, inputType=inputType, valRange=valRange, initValue=initValue, onChange=onChange)
-
-		self.config(
-			text=id
-		)
-
 		self.cButtons = []
 
+		# Create and initialize widgets
+		tk.LabelFrame.__init__(self, parent)
+		_TKCWidget.__init__(self, parent, id, inputType=inputType, valRange=valRange, initValue=initValue, onChange=onChange)
+		self.config(text=id)
+
 		f = 1
-		c = 0
-		for cb in valRange:
+		for c, cb in enumerate(valRange):
 			self.cVars.append(tk.IntVar())
 			btn = tk.Checkbutton(self, *args, **kwargs)
 			btn.config(
 				text=cb,
 				anchor='w',
 				command=self._update,
-				textvariable='',
 				variable=self.cVars[c],
 				onvalue=f,
 				offvalue=0
@@ -390,7 +404,6 @@ class TKCFlags(_TKCWidget, tk.LabelFrame):
 			btn.grid(row=c, column=0)
 			self.rButtons.append(btn)
 			f *= 2
-			c += 1
 
 	def _getWidgetValue(self):
 		value = 0
@@ -399,11 +412,13 @@ class TKCFlags(_TKCWidget, tk.LabelFrame):
 		return value
 	
 	def _setWidgetValue(self, value):
-		if value < 0 or value >= 2**len(self.valRange):
-			raise ValueError(f"Value {value} out of range")
+		if type(value) is not float and type(value) is not int:
+			raise TypeError(f"{id}: inputType={self.inputType}, value={value}")
+		v = int(value)
+		m = 2**len(self.valRange)
+		if v < 0 or v >= m:
+			raise ValueError(f"Value {v} out of range (0, {m})")
 		f = 1
-		c = 0
-		for var in self.cVars:
-			if value & f: var.set(f)
+		for c,var in enumerate(self.cVars):
+			if v & f: var.set(f)
 			f *= 2
-			c += 1
