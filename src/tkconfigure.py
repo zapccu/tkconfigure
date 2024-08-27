@@ -32,15 +32,17 @@ from typing import Literal
 #
 # Parameter attributes:
 #
-#   inputType -  The input type, either 'int', 'float' or 'str',#
+#   inputType -  The input type, either 'int', 'float', 'str' or 'bits'
 #                default = 'str'
 #   initValue -  Initial parameter value, type must match inputType,
 #                default = None
 #   valRange -   Depends on inputType, default = None (no input validation)
 #                  'str': list of valid strings
 #                  'int','float': tuple with value range (from, to [,increment])
+#                  'bits': list of string representing the bits (index 0 = bit 0)
 #   widget -     The type of the input widget, either 'TKCEntry', 'TKCSpinbox',
-#                'TKCCheckbox', 'TKCListbox'. Default = 'TKCEntry'
+#                'TKCCheckbox', 'TKCListbox', 'TKCRadiobuttons', 'TKCFlags'.
+#                Default = 'TKCEntry'
 #   label -      Text placed in front of the widget, default = '' (no text)
 #   width -      Width of the input widget in characters, default = 20
 #   widgetAttr - Dictionary with additional TKInter widget attributes,
@@ -62,11 +64,7 @@ class TKConfigure:
 	def __init__(self, parameterdefinition: dict | None = None, config: dict | None = None):
 
 		# Input types:
-		self.types = {
-			'int': int,
-			'float': float,
-			'str': str
-		}
+		self.types = { 'int': int, 'float': float, 'str': str, 'bits': int }
 
 		# Allowed parameter definition keys. Can be enhanced by method addKey()
 		self.attributes = [ 'inputType', 'valRange', 'initValue', 'widget', 'label', 'width', 'widgetAttr' ]
@@ -125,8 +123,8 @@ class TKConfigure:
 		if type(parCfg['valRange']) is tuple:
 			if len(parCfg['valRange']) < 2 or len(parCfg['valRange']) > 3:
 				raise ValueError("valRange tuple must have 2 or 3 values for parameter", id)
-			if parCfg['inputType'] == 'str':
-				raise TypeError("Unsupported inputType 'str' for valRange tuple for parameter", id)
+			if parCfg['inputType'] == 'str' or parCfg['inputType'] == 'bits':
+				raise TypeError(f"Unsupported inputType {parCfg['inputType']} for valRange tuple for parameter {id}")
 			elif parCfg['initValue'] < parCfg['valRange'][0] or parCfg['initValue'] > parCfg['valRange'][1]:
 				raise ValueError("initValue out of valRange for parameter", id)
 		elif type(parCfg['valRange']) is list:
@@ -135,6 +133,8 @@ class TKConfigure:
 			if parCfg['inputType'] == 'str' and parCfg['initValue'] not in parCfg['valRange']:
 				raise ValueError("initValue is not part of valRange for parameter", id)
 			elif parCfg['inputType'] == 'int' and (parCfg['initValue'] < 0 or parCfg['initValue'] > len(parCfg['valRange'])):
+				raise IndexError("initValue out of valRange for parameter", id)
+			elif parCfg['inputType'] == 'bits' and (parCfg['initValue'] < 0 or parCfg['initValue'] >= 2**len(parCfg['valRange'])):
 				raise IndexError("initValue out of valRange for parameter", id)
 			elif parCfg['inputType'] == 'float':
 				raise TypeError("Unsupported inputType for valRange list for parameter", id)
@@ -160,8 +160,11 @@ class TKConfigure:
 		elif type(parCfg['valRange']) is list:
 			if type(value) is str and value not in parCfg['valRange']:
 				raise ValueError(f"Value {value} not in valRange list for parameter", id)
-			if type(value) is int and (value < 0 or value >= len(parCfg['valRange'])):
-				raise IndexError(f"Value {value} is not a valid valRange index for parameter", id)
+			if type(value) is int:
+				if parCfg['inputType'] == 'int' and (value < 0 or value >= len(parCfg['valRange'])):
+					raise IndexError(f"Value {value} is not a valid valRange index for parameter", id)
+				elif parCfg['inputType'] == 'bits' and (value < 0 or value >= 2**len(parCfg['valRange'])):
+					raise ValueError(f"Value {value} is not valid for valRange bitmask for parameter", id)
 		
 		return value
 	

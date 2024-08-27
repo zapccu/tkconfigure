@@ -88,12 +88,23 @@ class App:
 					'initValue': 11,
 					'widget':    'TKCCheckbox'
 				},
+				'calcOptions': {
+					'inputType': 'bits',
+					'valRange':  [ 'Interations', 'Potential', 'Distance' ],
+					'initValue': 0,
+					'widget':    'TKCFlags',
+					'widgetAttr': {
+						'text': 'Calculation flags'
+					}
+				},
 				'colorMapping': {
 					'inputType': 'int',
 					'valRange':  [ 'Modulo', 'Linear' ],
 					'initValue': 0,
 					'widget':    'TKCRadiobuttons',
-					'label':     'Color mapping'
+					'widgetAttr': {
+						'text': 'Color mapping'
+					}
 				}
 			}
 		})

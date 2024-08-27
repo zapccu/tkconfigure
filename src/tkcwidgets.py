@@ -11,7 +11,8 @@ class _TKCWidget:
 
 	_WIDGETS_ = [ 'TKCSpinbox', 'TKCEntry', 'TKCListbox', 'TKCCheckbox', 'TKCRadiobuttons', 'TKCFlags' ]
 
-	def __init__(self, parent, id: str, inputType: Literal['int','float','str'] = 'str', valRange: tuple = None, initValue = None, onChange = None):
+	def __init__(self, parent, id: str, inputType: Literal['int','float','str','bits'] = 'str',
+			  valRange: tuple = None, initValue = None, onChange = None):
 		self.parent    = parent
 		self.id        = id
 		self.inputType = inputType
@@ -31,7 +32,7 @@ class _TKCWidget:
 	@staticmethod
 	def _checkParameters(inputType: str, valRange: list | tuple, vrMandatory: bool = False):
 		if inputType is None: raise ValueError('inputType == None')
-		if inputType not in ['int', 'float', 'str']: raise ValueError(inputType)
+		if inputType not in ['int', 'float', 'str', 'bits']: raise ValueError(inputType)
 		
 		if valRange is None:
 			if vrMandatory: raise ValueError('valRange == None')
@@ -59,6 +60,8 @@ class _TKCWidget:
 		elif type(self.valRange) is list:
 			if self.inputType == 'str':
 				return value in self.valRange
+			elif self.inputType == 'bits':
+				return 0 <= int(value) < 2**len(self.valRange)
 			else:
 				return 0 <= int(value) < len(self.valRange)
 
@@ -66,7 +69,7 @@ class _TKCWidget:
 		if self.inputType == 'str' and type(self.valRange) is list:
 			return value in self.valRange		
 		try:
-			if self.inputType == 'int':
+			if self.inputType == 'int' or self.inputType == 'bits':
 				v = int(value)
 			elif self.inputType == 'float':
 				v = float(value)
@@ -154,6 +157,8 @@ class TKCSpinbox(_TKCWidget, tk.Spinbox):
 	def __init__(self, parent, id: str, inputType: Literal['int','float','str'] = 'int',
 				valRange: tuple = (0, 0, 1), initValue = None, onChange = None, *args, **kwargs):
 		# Check parameters
+		if inputType not in ['int','float','str']:
+			raise ValueError(f"{id}: Invalid inputType {inputType}")
 		_TKCWidget._checkParameters(inputType, valRange, vrMandatory=True)
 
 		# Spinbox value is stored in a text variable and casted to input type by function _getWidgetValue()
@@ -217,6 +222,8 @@ class TKCEntry(_TKCWidget, tk.Entry):
 	def __init__(self, parent, id: str, inputType: Literal['int','float','str'] = 'str',
 				valRange: tuple = None, initValue = None, onChange = None, *args, **kwargs):
 		# Check parameters
+		if inputType not in ['int','float','str']:
+			raise ValueError(f"{id}: Invalid inputType {inputType}")
 		_TKCWidget._checkParameters(inputType, valRange)
 
 		self.enVar = tk.StringVar()
@@ -272,6 +279,8 @@ class TKCListbox(_TKCWidget, ttk.Combobox):
 	def __init__(self, parent, id: str, inputType: Literal['int','float','str'] = 'str',
 				valRange = None, initValue = 0, onChange = None, *args, **kwargs):
 		# Check parameters
+		if inputType not in ['int','float','str']:
+			raise ValueError(f"{id}: Invalid inputType {inputType}")
 		_TKCWidget._checkParameters(inputType, valRange, vrMandatory=True)
 
 		self.lbVar = tk.StringVar()
@@ -372,11 +381,11 @@ class TKCRadiobuttons(_TKCWidget, tk.LabelFrame):
 
 class TKCFlags(_TKCWidget, tk.LabelFrame):
 
-	def __init__(self, parent, id: str, inputType: Literal['int'] = 'int',
+	def __init__(self, parent, id: str, inputType: Literal['bits'] = 'bits',
 				valRange = None, initValue = 0, onChange = None, *args, **kwargs):
 		# Check parameters
-		if inputType != 'int':
-			raise ValueError(f"{id}: Invalid inputType {inputType}. Only 'int' supported by TKCFlags")
+		if inputType != 'bits':
+			raise ValueError(f"{id}: Invalid inputType {inputType}. Only 'bits' supported by TKCFlags")
 		if type(valRange) is not list or len(valRange) == 0:
 			raise TypeError("valRange is not a list or list is empty")
 		_TKCWidget._checkParameters(inputType, valRange)
@@ -402,13 +411,14 @@ class TKCFlags(_TKCWidget, tk.LabelFrame):
 				offvalue=0
 			)
 			btn.grid(row=c, column=0)
-			self.rButtons.append(btn)
+			self.cButtons.append(btn)
 			f *= 2
 
 	def _getWidgetValue(self):
 		value = 0
 		for var in self.cVars:
 			value += var.get()
+		print(f"_getWidgetValue = {value}")
 		return value
 	
 	def _setWidgetValue(self, value):
