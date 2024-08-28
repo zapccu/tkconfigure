@@ -93,6 +93,13 @@ class TKConfigure:
 		# Created widgets: ['<id>'] -> <widget>
 		self.widget = {}
 
+		self.notifyChange = None
+		self.notifyError  = None
+
+	def notify(self, onchange=None, onerror=None):
+		self.notifyChange = onchange
+		self.notifyError  = onerror
+
 	# Validate group and/or id
 	def _validateGroupId(self, group: str | None = None, id: str | None = None):
 		if group is not None and group not in self.parDef:
@@ -502,7 +509,9 @@ class TKConfigure:
 	# Called when widget value has changed
 	def _onChange(self, id: str, value):
 		if id in self.idList:
+			oldValue = self.get(id, returndefault=False)
 			self.set(id, value)
+			if self.notifyChange is not None: self.notifyChange(oldValue, value)
 
 # Create a new configuration object by cloning 
 def TKConfigureCopy(config: TKConfigure) -> TKConfigure:
