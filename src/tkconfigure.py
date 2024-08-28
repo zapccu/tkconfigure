@@ -105,14 +105,18 @@ class TKConfigure:
 		# Validate attributes
 		for a in parCfg:
 			if a not in self.attributes:
-				raise ValueError(f"Unknown attribute {a} for parameter", id)
+				raise ValueError(f"Unknown attribute {a} for parameter {id}")
+			
+		inputtype = parCfg['inputtype']
+		initvalue = parCfg['initvalue']
+		valrange  = parCfg['valrange']
 
 		# Validate the inputtype
-		if parCfg['inputtype'] not in self.types:
-			raise TypeError("Unknown inputtype for parameter", id)
+		if inputtype not in self.types:
+			raise TypeError(f"Unknown inputtype for parameter {id}")
 		
 		# initvalue must match inputtype
-		if type(parCfg['initvalue']) is not self.types[parCfg['inputtype']]:
+		if type(initvalue) is not self.types[inputtype]:
 			raise TypeError("Type of initvalue doesn't match inputtype for parameter", id)
 		
 		# Validate widget type
@@ -120,24 +124,26 @@ class TKConfigure:
 			raise ValueError("Unknown widget type for parameter", id)
 		
 		# Validate valrange / initvalue / inputtype
-		if type(parCfg['valrange']) is tuple:
-			if len(parCfg['valrange']) < 2 or len(parCfg['valrange']) > 3:
-				raise ValueError("valrange tuple must have 2 or 3 values for parameter", id)
-			if parCfg['inputtype'] == 'str' or parCfg['inputtype'] == 'bits':
-				raise TypeError(f"Unsupported inputtype {parCfg['inputtype']} for valrange tuple for parameter {id}")
-			elif parCfg['initvalue'] < parCfg['valrange'][0] or parCfg['initvalue'] > parCfg['valrange'][1]:
-				raise ValueError("initvalue out of valrange for parameter", id)
-		elif type(parCfg['valrange']) is list:
-			if len(parCfg['valrange']) == 0:
+		if type(valrange) is tuple:
+			if len(valrange) < 2 or len(valrange) > 3:
+				raise ValueError(f"valrange tuple must have 2 or 3 values for parameter {id}")
+			if inputtype in ['int','float','complex'] and (initvalue < valrange[0] or initvalue > valrange[1]):
+				raise ValueError(f"initvalue out of valrange for parameter {id}")
+			elif inputtype == 'str' and (len(initvalue) < valrange[0] or len(initvalue) > valrange[1]):
+				raise ValueError(f"Length of initvalue string out of valrange for paramter {id}")
+			elif inputtype == 'bits':
+				raise TypeError(f"Unsupported inputtype {inputtype} for valrange tuple for parameter {id}")
+		elif type(valrange) is list:
+			if len(valrange) == 0:
 				raise ValueError("valrange list must not be empty for parameter", id)
-			if parCfg['inputtype'] == 'str' and parCfg['initvalue'] not in parCfg['valrange']:
+			if inputtype == 'str' and initvalue not in valrange:
 				raise ValueError("initvalue is not part of valrange for parameter", id)
-			elif parCfg['inputtype'] == 'int' and (parCfg['initvalue'] < 0 or parCfg['initvalue'] > len(parCfg['valrange'])):
+			elif inputtype == 'int' and (initvalue < 0 or initvalue > len(valrange)):
 				raise IndexError("initvalue out of valrange for parameter", id)
-			elif parCfg['inputtype'] == 'bits' and (parCfg['initvalue'] < 0 or parCfg['initvalue'] >= 2**len(parCfg['valrange'])):
+			elif inputtype == 'bits' and (initvalue < 0 or initvalue >= 2**len(valrange)):
 				raise IndexError("initvalue out of valrange for parameter", id)
-			elif parCfg['inputtype'] in ['float', 'complex']:
-				raise TypeError(f"Unsupported inputtype {parCfg['inputtype']}for valrange list for parameter {id}")
+			elif inputtype in ['float', 'complex']:
+				raise TypeError(f"Unsupported inputtype {inputtype}for valrange list for parameter {id}")
 
 	# Validate parameter value
 	def _validateValue(self, id: str, value, bCast = False):
@@ -157,8 +163,11 @@ class TKConfigure:
 				value = complex(value)
 
 		# Validate valrange / value
-		if type(parCfg['valrange']) is tuple and (value < parCfg['valrange'][0] or value > parCfg['valrange'][1]):
-			raise ValueError(f"Value {value} not in valrange for parameter", id)
+		if type(parCfg['valrange']) is tuple:
+			if parCfg['inputtype'] in ['int','float','complex'] and (value < parCfg['valrange'][0] or value > parCfg['valrange'][1]):
+				raise ValueError(f"Value {value} not in valrange for parameter {id}")
+			elif parCfg['inputtype'] == 'str' and (len(str(value)) < parCfg['valrange'][0] or (len(str(value))) > parCfg['valrange'][1]):
+				raise ValueError(f"String lenght out of valrange for parameter {id}")
 		elif type(parCfg['valrange']) is list:
 			if type(value) is str and value not in parCfg['valrange']:
 				raise ValueError(f"Value {value} not in valrange list for parameter", id)

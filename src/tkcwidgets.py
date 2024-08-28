@@ -30,24 +30,20 @@ class _TKCWidget:
 			self.bind('<Return>', self._update)
 
 	@staticmethod
-	def _checkParameters(inputtype: str, valrange: list | tuple, vrMandatory: bool = False):
-		if inputtype is None: raise ValueError('inputtype == None')
+	def _checkParameters(inputtype: str, valrange: list | tuple | None, vrMandatory: bool = False):
+		if inputtype is None:
+			raise ValueError('inputtype == None')
 		if inputtype not in ['int', 'float', 'str', 'bits', 'complex']:
 			raise ValueError(f"Invalid inputtype {inputtype}")
-		
-		if valrange is None:
-			if vrMandatory: raise ValueError('valrange == None')
-			return
-		
-		if inputtype == 'str':
-			if type(valrange) is not list: raise TypeError('valrange')
-			if len(valrange) == 0: raise ValueError('valrange == []')
+
+		if valrange is None and vrMandatory:
+			raise ValueError('valrange == None')
 		elif type(valrange) is tuple and (len(valrange) < 2 or len(valrange) > 3):
 			raise ValueError(valrange)
 		elif type(valrange) is list and len(valrange) == 0:
 			raise ValueError('valrange == []')
-		elif type(valrange) is not tuple and type(valrange) is not list:
-			raise TypeError('valrange', valrange, type(valrange))
+		elif valrange is not None and type(valrange) not in [list, tuple]:
+			raise TypeError("valrange must be None or list or tuple")
 
 	# Check if value is in valrange
 	def _checkRange(self, value) -> bool:
@@ -55,6 +51,8 @@ class _TKCWidget:
 		if type(self.valrange) is tuple:
 			if self.inputtype in ['int','float','complex']:
 				return self.valrange[0] <= value <= self.valrange[1]
+			elif self.inputtype == 'str':
+				return self.valrange[0] <= len(str(value)) <= self.valrange[1]
 			else:
 				return False
 		elif type(self.valrange) is list:
@@ -109,8 +107,18 @@ class _TKCWidget:
 	def _setWidgetValue(self, value):
 		pass
 
+	# Return widget value casted to inputtype
 	def get(self):
-		return self.var
+		if self.inputtype in ['int','bits'] and type(self.var) is not int:
+			return int(self.var)
+		elif self.inputtype == 'float' and type(self.var) is not float:
+			return float(self.var)
+		elif self.inputtype == 'complex' and type(self.var) is not complex:
+			return complex(self.var)
+		elif self.inputtype == 'str' and type(self.var) is not str:
+			return str(self.var)
+		else:
+			return self.var
 	
 	def getStr(self) -> str:
 		return str(self.var)
@@ -398,8 +406,10 @@ class TKCFlags(_TKCWidget, tk.LabelFrame):
 			raise TypeError("valrange is not a list or list is empty")
 		_TKCWidget._checkParameters(inputtype, valrange)
 
-		self.cVars = []
 		self.cButtons = []
+		self.cVars = []
+		for i in range(len(valrange)):
+			self.cVars.append(tk.IntVar())
 
 		# Create and initialize widgets
 		tk.LabelFrame.__init__(self, parent)
@@ -408,7 +418,6 @@ class TKCFlags(_TKCWidget, tk.LabelFrame):
 
 		f = 1
 		for c, cb in enumerate(valrange):
-			self.cVars.append(tk.IntVar())
 			btn = tk.Checkbutton(self, *args, **kwargs)
 			btn.config(
 				text=cb,
@@ -426,7 +435,6 @@ class TKCFlags(_TKCWidget, tk.LabelFrame):
 		value = 0
 		for var in self.cVars:
 			value += var.get()
-		print(f"_getWidgetValue = {value}")
 		return value
 	
 	def _setWidgetValue(self, value):
@@ -435,8 +443,9 @@ class TKCFlags(_TKCWidget, tk.LabelFrame):
 		v = int(value)
 		m = 2**len(self.valrange)
 		if v < 0 or v >= m:
-			raise ValueError(f"Value {v} out of range (0, {m})")
+			raise ValueError(f"Value {v} out of range (0, {m-1})")
 		f = 1
-		for c,var in enumerate(self.cVars):
-			if v & f: var.set(f)
+		for var in self.cVars:
+			if v & f:
+				var.set(f)
 			f *= 2

@@ -20,7 +20,9 @@ class App:
 			'': {
 				# Leaving most of the attributes empty will create a TKCEntry widget
 				'filename': {
-					'label': 'File name'
+					'valrange':  (1, 10),              # Enter min 1, max 10 characters
+					'initvalue': 'myfractal',
+					'label':     'File name'
 				}
 			},
 			# First group 'Calculation settings'
@@ -57,7 +59,7 @@ class App:
 				# This parameter is represented by a TKCListbox widget (a readonly Combobox)
 				'sDrawMode': {
 					'inputtype': 'str',            # Widget should return the selected string instead of the list index
-					'valrange':  [                 # Value list required because of input type 'str'
+					'valrange':  [                 # Listbox entries
 						'Line-by-Line',
 						'SQEM recursive',
 						'SQEM iterative'
@@ -68,13 +70,13 @@ class App:
 					'width':     15
 				},
 				'iDrawMode': {
-					'inputtype': 'int',            # Widget should return index of the selected string
-					'valrange':  [                 # Value list required because of input type 'str'
+					'inputtype': 'int',            # Widget should return the index of the selected string
+					'valrange':  [                 # Listbox entries
 						'Line-by-Line',
 						'SQEM recursive',
 						'SQEM iterative'
 					],
-					'initvalue': 0,                # if inputtype is numeric, the initial value is a valid index for valrange list
+					'initvalue': 0,                # If inputtype is numeric, the initial value must be an index for valrange list
 					'widget':    'TKCListbox',
 					'label':     'Drawing mode int',
 					'width':     15,
@@ -97,12 +99,14 @@ class App:
 					'widget':    'TKCCheckbox'
 				},
 				# Combined flags, stored as bits, represented by a TKCFlags widget
+				# A TKCWidget contains a checkbox for each flag (bit). The checkboxes are
+				# surrounded by a Labelframe.
 				'calcOptions': {
 					'inputtype': 'bits',
 					'valrange':  [ 'Interations', 'Potential', 'Distance' ],
 					'initvalue': 5,
 					'widget':    'TKCFlags',
-					'widgetattr': {
+					'widgetattr': {                # Attributes of the Labelframe
 						'text': 'Calculation flags'
 					}
 				},
