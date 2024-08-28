@@ -85,7 +85,7 @@ class _TKCWidget:
 		value = self._getWidgetValue()
 		if self._validate(value) and self._checkRange(value):
 			if value != self.var:
-				# Inform app about new widget value
+				# Inform app (TKConfigure) about new widget value
 				self.var = value
 				self.onChange(self.id, value)
 			return

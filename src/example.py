@@ -140,6 +140,7 @@ class App:
 
 	# Function is called when button is pressed. Shows the current configuration
 	def onPrint(self):
+		self.appConfig.syncConfig()
 		for id in self.appConfig.getIds():
 			print(id, "=", self.appConfig[id])
 		print(self.appConfig.config)

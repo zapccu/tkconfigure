@@ -350,7 +350,7 @@ class TKConfigure:
 		elif id in self.config and (len(groups) == 0 or self.idList[id] in groups) and 'oldValue' in self.config[id]:
 			self.config[id]['value'] = self.config[id]['oldValue']
 
-	# Copy parameter values to old values. This is done automatically before an input mask is shown
+	# Copy parameter values to old values
 	def apply(self, groups: list = [], id: str | None = None):
 		if id is None:
 			for i in self.config:
@@ -376,6 +376,7 @@ class TKConfigure:
 		if id is None:
 			for id in self.config:
 				if id in self.widget:
+					self.widget[id]._update()
 					self.set(id, self.widget[id].get())
 		elif id not in self.config:
 			raise KeyError("Unknown parameter id", id)
@@ -502,5 +503,6 @@ class TKConfigure:
 		if id in self.idList:
 			self.set(id, value)
 
+# Create a new configuration object by cloning 
 def TKConfigureCopy(config: TKConfigure) -> TKConfigure:
 	return TKConfigure(config.getParameterDefinition(), config.getConfig())
