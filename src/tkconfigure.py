@@ -511,7 +511,7 @@ class TKConfigure:
 		if id in self.idList:
 			oldValue = self.get(id, returndefault=False)
 			self.set(id, value)
-			if self.notifyChange is not None: self.notifyChange(oldValue, value)
+			if self.notifyChange is not None: self.notifyChange(id, oldValue, value)
 
 # Create a new configuration object by cloning 
 def TKConfigureCopy(config: TKConfigure) -> TKConfigure:
