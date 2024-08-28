@@ -303,9 +303,10 @@ class TKConfigure:
 		return self.config
 
 	# Get parameter value
-	def get(self, id: str, returndefault: bool = True):
+	def get(self, id: str, returndefault: bool = True, sync: bool = False):
 		self._validateGroupId(id=id)
 		if id in self.config and 'value' in self.config[id]:
+			if sync: self.widget[id]._update()
 			return self.config[id]['value']
 		elif returndefault:
 			return self.getPar(self.idList[id], id, 'initvalue')
