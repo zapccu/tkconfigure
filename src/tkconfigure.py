@@ -32,11 +32,11 @@ from typing import Literal
 #
 # Parameter attributes:
 #
-#   inputType -  The input type, either 'int', 'float', 'str', 'bits', 'complex'
+#   inputtype -  The input type, either 'int', 'float', 'str', 'bits', 'complex'
 #                default = 'str'
-#   initValue -  Initial parameter value, type must match inputType,
+#   initvalue -  Initial parameter value, type must match inputtype,
 #                default = None
-#   valRange -   Depends on inputType, default = None (no input validation)
+#   valrange -   Depends on inputtype, default = None (no input validation)
 #                  'str': list of valid strings
 #                  'int','float': tuple with value range (from, to [,increment])
 #                  'bits': list of string representing the bits (index 0 = bit 0)
@@ -45,7 +45,7 @@ from typing import Literal
 #                Default = 'TKCEntry'
 #   label -      Text placed in front of the widget, default = '' (no text)
 #   width -      Width of the input widget in characters, default = 20
-#   widgetAttr - Dictionary with additional TKInter widget attributes,
+#   widgetattr - Dictionary with additional TKInter widget attributes,
 #                default = {}
 #
 # Parameter value dictionary:
@@ -67,17 +67,17 @@ class TKConfigure:
 		self.types = { 'int': int, 'float': float, 'str': str, 'bits': int, 'complex': complex }
 
 		# Allowed parameter definition keys. Can be enhanced by method addKey()
-		self.attributes = [ 'inputType', 'valRange', 'initValue', 'widget', 'label', 'width', 'widgetAttr' ]
+		self.attributes = [ 'inputtype', 'valrange', 'initvalue', 'widget', 'label', 'width', 'widgetattr' ]
 
 		# Default values for parameter attributes
 		self.defaults = {
-			'inputType':  'str',
-			'valRange':   None,
-			'initValue':  '',
+			'inputtype':  'str',
+			'valrange':   None,
+			'initvalue':  '',
 			'widget':     'TKCEntry',
 			'label':      '',
 			'width':      20,
-			'widgetAttr': {}
+			'widgetattr': {}
 		}
 
 		# Parameter ids: ['<id>'] -> <group>
@@ -107,66 +107,66 @@ class TKConfigure:
 			if a not in self.attributes:
 				raise ValueError(f"Unknown attribute {a} for parameter", id)
 
-		# Validate the inputType
-		if parCfg['inputType'] not in self.types:
-			raise TypeError("Unknown inputType for parameter", id)
+		# Validate the inputtype
+		if parCfg['inputtype'] not in self.types:
+			raise TypeError("Unknown inputtype for parameter", id)
 		
-		# initValue must match inputType
-		if type(parCfg['initValue']) is not self.types[parCfg['inputType']]:
-			raise TypeError("Type of initValue doesn't match inputType for parameter", id)
+		# initvalue must match inputtype
+		if type(parCfg['initvalue']) is not self.types[parCfg['inputtype']]:
+			raise TypeError("Type of initvalue doesn't match inputtype for parameter", id)
 		
 		# Validate widget type
 		if parCfg['widget'] not in _TKCWidget._WIDGETS_:
 			raise ValueError("Unknown widget type for parameter", id)
 		
-		# Validate valRange / initValue / inputType
-		if type(parCfg['valRange']) is tuple:
-			if len(parCfg['valRange']) < 2 or len(parCfg['valRange']) > 3:
-				raise ValueError("valRange tuple must have 2 or 3 values for parameter", id)
-			if parCfg['inputType'] == 'str' or parCfg['inputType'] == 'bits':
-				raise TypeError(f"Unsupported inputType {parCfg['inputType']} for valRange tuple for parameter {id}")
-			elif parCfg['initValue'] < parCfg['valRange'][0] or parCfg['initValue'] > parCfg['valRange'][1]:
-				raise ValueError("initValue out of valRange for parameter", id)
-		elif type(parCfg['valRange']) is list:
-			if len(parCfg['valRange']) == 0:
-				raise ValueError("valRange list must not be empty for parameter", id)
-			if parCfg['inputType'] == 'str' and parCfg['initValue'] not in parCfg['valRange']:
-				raise ValueError("initValue is not part of valRange for parameter", id)
-			elif parCfg['inputType'] == 'int' and (parCfg['initValue'] < 0 or parCfg['initValue'] > len(parCfg['valRange'])):
-				raise IndexError("initValue out of valRange for parameter", id)
-			elif parCfg['inputType'] == 'bits' and (parCfg['initValue'] < 0 or parCfg['initValue'] >= 2**len(parCfg['valRange'])):
-				raise IndexError("initValue out of valRange for parameter", id)
-			elif parCfg['inputType'] in ['float', 'complex']:
-				raise TypeError(f"Unsupported inputType {parCfg['inputType']}for valRange list for parameter {id}")
+		# Validate valrange / initvalue / inputtype
+		if type(parCfg['valrange']) is tuple:
+			if len(parCfg['valrange']) < 2 or len(parCfg['valrange']) > 3:
+				raise ValueError("valrange tuple must have 2 or 3 values for parameter", id)
+			if parCfg['inputtype'] == 'str' or parCfg['inputtype'] == 'bits':
+				raise TypeError(f"Unsupported inputtype {parCfg['inputtype']} for valrange tuple for parameter {id}")
+			elif parCfg['initvalue'] < parCfg['valrange'][0] or parCfg['initvalue'] > parCfg['valrange'][1]:
+				raise ValueError("initvalue out of valrange for parameter", id)
+		elif type(parCfg['valrange']) is list:
+			if len(parCfg['valrange']) == 0:
+				raise ValueError("valrange list must not be empty for parameter", id)
+			if parCfg['inputtype'] == 'str' and parCfg['initvalue'] not in parCfg['valrange']:
+				raise ValueError("initvalue is not part of valrange for parameter", id)
+			elif parCfg['inputtype'] == 'int' and (parCfg['initvalue'] < 0 or parCfg['initvalue'] > len(parCfg['valrange'])):
+				raise IndexError("initvalue out of valrange for parameter", id)
+			elif parCfg['inputtype'] == 'bits' and (parCfg['initvalue'] < 0 or parCfg['initvalue'] >= 2**len(parCfg['valrange'])):
+				raise IndexError("initvalue out of valrange for parameter", id)
+			elif parCfg['inputtype'] in ['float', 'complex']:
+				raise TypeError(f"Unsupported inputtype {parCfg['inputtype']}for valrange list for parameter {id}")
 
 	# Validate parameter value
 	def _validateValue(self, id: str, value, bCast = False):
 		self._validateGroupId(id=id)
 		parCfg = self.getPar(self.idList[id], id)
 
-		# Type of value must match inputType
-		if type(value) is not self.types[parCfg['inputType']]:
-			raise TypeError(f"Type of value {value} doesn't match input type {parCfg['inputType']} of parameter", id)
+		# Type of value must match inputtype
+		if type(value) is not self.types[parCfg['inputtype']]:
+			raise TypeError(f"Type of value {value} doesn't match input type {parCfg['inputtype']} of parameter", id)
 		
 		if bCast:
-			if type(value) is int and parCfg['inputType'] == 'float':
+			if type(value) is int and parCfg['inputtype'] == 'float':
 				value = float(value)
-			elif type(value) is float and parCfg['inputType'] == 'int':
+			elif type(value) is float and parCfg['inputtype'] == 'int':
 				value = int(value)
-			elif (type(value) is int or type(value) is float) and parCfg['inputType'] == 'complex':
+			elif (type(value) is int or type(value) is float) and parCfg['inputtype'] == 'complex':
 				value = complex(value)
 
-		# Validate valRange / value
-		if type(parCfg['valRange']) is tuple and (value < parCfg['valRange'][0] or value > parCfg['valRange'][1]):
-			raise ValueError(f"Value {value} not in valRange for parameter", id)
-		elif type(parCfg['valRange']) is list:
-			if type(value) is str and value not in parCfg['valRange']:
-				raise ValueError(f"Value {value} not in valRange list for parameter", id)
+		# Validate valrange / value
+		if type(parCfg['valrange']) is tuple and (value < parCfg['valrange'][0] or value > parCfg['valrange'][1]):
+			raise ValueError(f"Value {value} not in valrange for parameter", id)
+		elif type(parCfg['valrange']) is list:
+			if type(value) is str and value not in parCfg['valrange']:
+				raise ValueError(f"Value {value} not in valrange list for parameter", id)
 			if type(value) is int:
-				if parCfg['inputType'] == 'int' and (value < 0 or value >= len(parCfg['valRange'])):
-					raise IndexError(f"Value {value} is not a valid valRange index for parameter", id)
-				elif parCfg['inputType'] == 'bits' and (value < 0 or value >= 2**len(parCfg['valRange'])):
-					raise ValueError(f"Value {value} is not valid for valRange bitmask for parameter", id)
+				if parCfg['inputtype'] == 'int' and (value < 0 or value >= len(parCfg['valrange'])):
+					raise IndexError(f"Value {value} is not a valid valrange index for parameter", id)
+				elif parCfg['inputtype'] == 'bits' and (value < 0 or value >= 2**len(parCfg['valrange'])):
+					raise ValueError(f"Value {value} is not valid for valrange bitmask for parameter", id)
 		
 		return value
 	
@@ -185,10 +185,10 @@ class TKConfigure:
 	def setDefaultValue(self, group: str, id: str):
 		self._validateGroupId(group=group, id=id)
 
-		initValue = self.getPar(group, id, 'initValue')
+		initvalue = self.getPar(group, id, 'initvalue')
 
-		# Validate inputType and initValue, cast type for int or float
-		nInitValue = self._validateValue(id, initValue, bCast=True)
+		# Validate inputtype and initvalue, cast type for int or float
+		nInitValue = self._validateValue(id, initvalue, bCast=True)
 		self.set(id, nInitValue)
 	
 	# Set all parameters of current config to default values
@@ -267,7 +267,7 @@ class TKConfigure:
 			if k not in self.attributes: raise KeyError("Unknown parameter attribute", k)
 			self.parDef[group][id][k] = kwargs[k]
 		
-		# Set config value of new parameter to default (initValue)
+		# Set config value of new parameter to default (initvalue)
 		self.setDefaultValue(group, id)
 
 	# Get parameter attribute(s)
@@ -299,7 +299,7 @@ class TKConfigure:
 		if id in self.config and 'value' in self.config[id]:
 			return self.config[id]['value']
 		elif returndefault:
-			return self.getPar(self.idList[id], id, 'initValue')
+			return self.getPar(self.idList[id], id, 'initvalue')
 		else:
 			raise ValueError("No value assigned to parameter", id)
 		
@@ -381,14 +381,14 @@ class TKConfigure:
 		for id in self.parDef[group]:
 			# Create the input widget
 			widgetClass = globals()[self.getPar(group, id, 'widget')]
-			justify = 'left' if self.getPar(group, id, 'inputType') == 'str' else 'right'
-			self.widget[id] = widgetClass(master, id=id, inputType=self.getPar(group, id, 'inputType'), valRange=self.getPar(group, id, 'valRange'),
-					initValue=self.get(id), onChange=self._onChange, justify=justify, width=self.getPar(group, id, 'width'), *args, **kwargs)
+			justify = 'left' if self.getPar(group, id, 'inputtype') == 'str' else 'right'
+			self.widget[id] = widgetClass(master, id=id, inputtype=self.getPar(group, id, 'inputtype'), valrange=self.getPar(group, id, 'valrange'),
+					initvalue=self.get(id), onChange=self._onChange, justify=justify, width=self.getPar(group, id, 'width'), *args, **kwargs)
 			
 			# Set parameter specific widget attributes
-			widgetAttr = self.getPar(group, id, 'widgetAttr')
-			if len(widgetAttr) > 0:
-				self.widget[id].config(**widgetAttr)
+			widgetattr = self.getPar(group, id, 'widgetattr')
+			if len(widgetattr) > 0:
+				self.widget[id].config(**widgetattr)
 
 			lblText = self.getPar(group, id, 'label')
 			if lblText != '':

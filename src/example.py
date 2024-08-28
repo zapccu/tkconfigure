@@ -27,26 +27,26 @@ class App:
 			'Calculation settings': {
 				# Complex parameter represented by a TKCEntry widget
 				'corner': {
-					'inputType': 'complex',
-					'initValue': complex(-2.25, -1.5),
+					'inputtype': 'complex',
+					'initvalue': complex(-2.25, -1.5),
 					'widget':    'TKCEntry',
 					'label':     'Complex corner',
 					'width':     10
 				},
 				# Integer parameter represented by a TKCSpinbox widget
 				'maxIter': {
-					'inputType': 'int',               # Input type ('int', 'float' or 'str')
-					'valRange':  (100, 4000, 10),     # Value range 100-4000 and increment
-					'initValue': mi,                  # Initial / default value for the parameter
+					'inputtype': 'int',               # Input type ('int', 'float' or 'str')
+					'valrange':  (100, 4000, 10),     # Value range 100-4000 and increment
+					'initvalue': mi,                  # Initial / default value for the parameter
 					'widget':    'TKCSpinbox',        # The widget type
 					'label':     'Max. iterations',   # Label shown in front or top of the widget
 					'width':     10                   # Width of the widget in characters
 				},
 				# Float parameter represented by a TKCEntry widget with numeric input only
 				'bailout': {
-					'inputType': 'float',
-					'valRange':  (4.0, 10000.0),
-					'initValue': ba,
+					'inputtype': 'float',
+					'valrange':  (4.0, 10000.0),
+					'initvalue': ba,
 					'widget':    'TKCEntry',
 					'label':     'Bailout radius',
 					'width':     10
@@ -56,61 +56,62 @@ class App:
 			'Modes': {
 				# This parameter is represented by a TKCListbox widget (a readonly Combobox)
 				'sDrawMode': {
-					'inputType': 'str',            # Widget should return the selected string instead of the list index
-					'valRange':  [                 # Value list required because of input type 'str'
+					'inputtype': 'str',            # Widget should return the selected string instead of the list index
+					'valrange':  [                 # Value list required because of input type 'str'
 						'Line-by-Line',
 						'SQEM recursive',
 						'SQEM iterative'
 					],
-					'initValue': 'Line-by-Line',   # If inputType is 'str', the initial value must be part of valRange list
+					'initvalue': 'Line-by-Line',   # If inputtype is 'str', the initial value must be part of valrange list
 					'widget':    'TKCListbox',
 					'label':     'Drawing mode str',
 					'width':     15
 				},
 				'iDrawMode': {
-					'inputType': 'int',            # Widget should return index of the selected string
-					'valRange':  [                 # Value list required because of input type 'str'
+					'inputtype': 'int',            # Widget should return index of the selected string
+					'valrange':  [                 # Value list required because of input type 'str'
 						'Line-by-Line',
 						'SQEM recursive',
 						'SQEM iterative'
 					],
-					'initValue': 0,                # if inputType is numeric, the initial value is a valid index for valRange list
+					'initvalue': 0,                # if inputtype is numeric, the initial value is a valid index for valrange list
 					'widget':    'TKCListbox',
 					'label':     'Drawing mode int',
 					'width':     15,
-					'widgetAttr': {
+					'widgetattr': {
 						'justify': 'left'          # Widget attribute for this parameter only	
 					}
 				}
 			},
 			"Flags": {
 				'distance': {
-					'inputType': 'int',
-					'valRange':  (0, 1),           # For checkbuttons: tuple(offvalue, onvalue)
-					'initValue': 0,
+					'inputtype': 'int',
+					'valrange':  (0, 1),           # For checkbuttons: tuple(offvalue, onvalue)
+					'initvalue': 0,
 					'widget':    'TKCCheckbox',
 				},
 				'potential': {
-					'inputType': 'int',
-					'valRange':  (10, 11),
-					'initValue': 11,
+					'inputtype': 'int',
+					'valrange':  (10, 11),         # 10 = on, 11 = off
+					'initvalue': 11,
 					'widget':    'TKCCheckbox'
 				},
+				# Combined flags, stored as bits, represented by a TKCFlags widget
 				'calcOptions': {
-					'inputType': 'bits',
-					'valRange':  [ 'Interations', 'Potential', 'Distance' ],
-					'initValue': 5,
+					'inputtype': 'bits',
+					'valrange':  [ 'Interations', 'Potential', 'Distance' ],
+					'initvalue': 5,
 					'widget':    'TKCFlags',
-					'widgetAttr': {
+					'widgetattr': {
 						'text': 'Calculation flags'
 					}
 				},
 				'colorMapping': {
-					'inputType': 'int',
-					'valRange':  [ 'Modulo', 'Linear' ],
-					'initValue': 0,
+					'inputtype': 'int',
+					'valrange':  [ 'Modulo', 'Linear' ],
+					'initvalue': 0,
 					'widget':    'TKCRadiobuttons',
-					'widgetAttr': {
+					'widgetattr': {
 						'text': 'Color mapping'
 					}
 				}
