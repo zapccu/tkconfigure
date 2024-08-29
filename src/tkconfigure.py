@@ -103,9 +103,9 @@ class TKConfigure:
 	# Validate group and/or id
 	def _validateGroupId(self, group: str | None = None, id: str | None = None):
 		if group is not None and group not in self.parDef:
-			raise ValueError("Unknown group", group)
+			raise ValueError(f"Unknown parameter group {group}")
 		if id is not None and id not in self.idList:
-			raise ValueError("Unknown parameter id", id)
+			raise ValueError(f"Unknown parameter id {id}")
 		
 	# Validate parameter defintion
 	def _validateParDef(self, id: str, parCfg: dict):
@@ -124,11 +124,11 @@ class TKConfigure:
 		
 		# initvalue must match inputtype
 		if type(initvalue) is not self.types[inputtype]:
-			raise TypeError("Type of initvalue doesn't match inputtype for parameter", id)
+			raise TypeError(f"Type of initvalue doesn't match inputtype for parameter {id}")
 		
 		# Validate widget type
 		if parCfg['widget'] not in _TKCWidget._WIDGETS_:
-			raise ValueError("Unknown widget type for parameter", id)
+			raise ValueError(f"Unknown widget type for parameter {id}")
 		
 		# Validate valrange / initvalue / inputtype
 		if type(valrange) is tuple:
@@ -142,13 +142,13 @@ class TKConfigure:
 				raise TypeError(f"Unsupported inputtype {inputtype} for valrange tuple for parameter {id}")
 		elif type(valrange) is list:
 			if len(valrange) == 0:
-				raise ValueError("valrange list must not be empty for parameter", id)
+				raise ValueError(f"valrange list must not be empty for parameter {id}")
 			if inputtype == 'str' and initvalue not in valrange:
-				raise ValueError("initvalue is not part of valrange for parameter", id)
+				raise ValueError(f"initvalue is not part of valrange for parameter {id}")
 			elif inputtype == 'int' and (initvalue < 0 or initvalue > len(valrange)):
-				raise IndexError("initvalue out of valrange for parameter", id)
+				raise IndexError(f"initvalue out of valrange for parameter {id}")
 			elif inputtype == 'bits' and (initvalue < 0 or initvalue >= 2**len(valrange)):
-				raise IndexError("initvalue out of valrange for parameter", id)
+				raise IndexError(f"initvalue out of valrange for parameter {id}")
 			elif inputtype in ['float', 'complex']:
 				raise TypeError(f"Unsupported inputtype {inputtype}for valrange list for parameter {id}")
 
@@ -159,7 +159,7 @@ class TKConfigure:
 
 		# Type of value must match inputtype
 		if type(value) is not self.types[parCfg['inputtype']]:
-			raise TypeError(f"Type of value {value} doesn't match input type {parCfg['inputtype']} of parameter", id)
+			raise TypeError(f"Type of value {value} doesn't match input type {parCfg['inputtype']} of parameter {id}")
 		
 		if bCast:
 			if type(value) is int and parCfg['inputtype'] == 'float':
@@ -177,12 +177,12 @@ class TKConfigure:
 				raise ValueError(f"String lenght out of valrange for parameter {id}")
 		elif type(parCfg['valrange']) is list:
 			if type(value) is str and value not in parCfg['valrange']:
-				raise ValueError(f"Value {value} not in valrange list for parameter", id)
+				raise ValueError(f"Value {value} not in valrange list for parameter {id}")
 			if type(value) is int:
 				if parCfg['inputtype'] == 'int' and (value < 0 or value >= len(parCfg['valrange'])):
-					raise IndexError(f"Value {value} is not a valid valrange index for parameter", id)
+					raise IndexError(f"Value {value} is not a valid valrange index for parameter {id}")
 				elif parCfg['inputtype'] == 'bits' and (value < 0 or value >= 2**len(parCfg['valrange'])):
-					raise ValueError(f"Value {value} is not valid for valrange bitmask for parameter", id)
+					raise ValueError(f"Value {value} is not valid for valrange bitmask for parameter {id}")
 		
 		return value
 	
@@ -191,10 +191,10 @@ class TKConfigure:
 		for id in config:
 			self._validateGroupId(id=id)
 			if 'value' not in config[id]:
-				raise ValueError("Missing parameter 'value' for parameter", id)
+				raise ValueError(f"Missing value for parameter {id}")
 			for a in config[id]:
 				if a not in ['value', 'oldValue']:
-					raise KeyError(f"Attribute {a} not allowed for parameter", id)
+					raise KeyError(f"Attribute {a} not allowed for parameter {id}")
 			self._validateValue(id, config[id]['value'])
 
 	# Set parameter value to default
@@ -222,7 +222,7 @@ class TKConfigure:
 		# Complete parameter definition. Add defaults for missing attributes
 		for group in parameterDefinition:
 			for id in parameterDefinition[group]:
-				if id in self.idList: raise KeyError("Duplicate parameter id", id)
+				if id in self.idList: raise KeyError(f"Duplicate parameter id {id}")
 				self.idList[id] = group
 				for a in self.defaults:
 					if a not in parameterDefinition[group][id]:
@@ -265,14 +265,14 @@ class TKConfigure:
 
 	# Add new key to parameter definition
 	def addAttribute(self, attribute: str, default = None):
-		if attribute in self.attributes: raise KeyError("Parameter attribute exists", attribute)
+		if attribute in self.attributes: raise KeyError(f"Parameter attribute {attribute} already exists")
 		self.attributes.append(attribute)
 		self.defaults[attribute] = default
 
 	# Add a new parameter to current configuration
 	def addParameter(self, group: str, id: str, widget: str | None = None, **kwargs):
-		if widget not in _TKCWidget._WIDGETS_: raise ValueError("Unknown widget type", widget)
-		if id in self.idList: raise KeyError("Parameter already exists", id)
+		if widget not in _TKCWidget._WIDGETS_: raise ValueError(f"Unknown widget type {widget}")
+		if id in self.idList: raise KeyError(f"Parameter {id} already exists")
 		# Create new group if it doesn't exist
 		if group not in self.parDef: self.parDef[group] = {}
 		self.idList[id] = group
@@ -280,7 +280,7 @@ class TKConfigure:
 		# Set parameter attributes to default, then overwrite by function parameters
 		self.parDef[group][id] = { **self.defaults }
 		for k in kwargs:
-			if k not in self.attributes: raise KeyError("Unknown parameter attribute", k)
+			if k not in self.attributes: raise KeyError(f"Unknown parameter attribute {k}")
 			self.parDef[group][id][k] = kwargs[k]
 		
 		# Set config value of new parameter to default (initvalue)
@@ -293,7 +293,7 @@ class TKConfigure:
 		if attribute is None:
 			return self.parDef[group][id]
 		elif attribute not in self.attributes:
-			raise KeyError("Unknown attribute", attribute)
+			raise KeyError(f"Unknown attribute {attribute} for parameter {id}")
 		elif attribute in self.parDef[group][id]:
 			return self.parDef[group][id][attribute]
 		else:
@@ -313,12 +313,12 @@ class TKConfigure:
 	def get(self, id: str, returndefault: bool = True, sync: bool = False):
 		self._validateGroupId(id=id)
 		if id in self.config and 'value' in self.config[id]:
-			if sync: self.widget[id]._update()
+			if sync and id in self.widget: self.widget[id]._update()
 			return self.config[id]['value']
 		elif returndefault:
 			return self.getPar(self.idList[id], id, 'initvalue')
 		else:
-			raise ValueError("No value assigned to parameter", id)
+			raise ValueError(f"No value assigned to parameter {id}")
 		
 	# Get parameter id list
 	def getIds(self) -> list:
@@ -359,11 +359,12 @@ class TKConfigure:
 			self.config[id]['value'] = self.config[id]['oldValue']
 
 	# Copy parameter values to old values
-	def apply(self, groups: list = [], id: str | None = None):
+	def apply(self, groups: list = [], id: str | None = None, sync: bool = True):
 		if id is None:
 			for i in self.config:
 				self.apply(groups, i)
 		elif id in self.config and len(groups) == 0 or self.idList[id] in groups and 'value' in self.config[id]:
+			if sync and id in self.widget: self.widget[id]._update()
 			self.config[id]['oldValue'] = self.config[id]['value']
 
 	# Sync widget value(s) with current config value(s)
@@ -374,7 +375,7 @@ class TKConfigure:
 					v = self.get(i)
 					self.widget[i].set(self.get(i))
 		elif id not in self.widget:
-			raise KeyError("Unknown widget id", id)
+			raise KeyError(f"Widget for parameter {id} not found")
 		elif id in self.config:
 			self.widget[id].set(self.get(id))
 
@@ -387,8 +388,8 @@ class TKConfigure:
 					self.widget[id]._update()
 					self.set(id, self.widget[id].get())
 		elif id not in self.config:
-			raise KeyError("Unknown parameter id", id)
-		else:
+			raise KeyError("Unknown parameter {id}")
+		elif id in self.widget:
 			self.set(id, self.widget[id].get())
 
 	# Create widgets for specified parameter group, return number of next free row
@@ -466,7 +467,6 @@ class TKConfigure:
 					colwidth: tuple = (50.0, 50.0), *args, **kwargs) -> bool:
 		# Create a copy of the current configuration
 		newConfig = TKConfigureCopy(self)
-		# newConfig = TKConfigure(self.getParameterDefinition(), self.getConfig())
 
 		result = False
 
