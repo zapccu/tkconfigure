@@ -1,4 +1,5 @@
 import tkinter as tk
+import json
 from tkcwidgets import *
 from tkcwidgets import _TKCWidget
 
@@ -305,9 +306,17 @@ class TKConfigure:
 		self.config = {}
 		self.config.update(config)
 
+	# Set current config from JSON data
+	def setJSON(self, jsonData: str):
+		self.setConfig(json.loads(jsonData))
+
 	# Get current config as dictionary
 	def getConfig(self) -> dict:
 		return self.config
+	
+	# Get current config from dictionary as JSONx^
+	def getJSON(self, indent: int = 4) -> str:
+		return json.dumps(self.config, indent=indent)
 
 	# Get parameter value
 	def get(self, id: str, returndefault: bool = True, sync: bool = False):
