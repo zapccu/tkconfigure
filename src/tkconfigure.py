@@ -215,11 +215,14 @@ class TKConfigure:
 			for id in self.parDef[group]:
 				self.setDefaultValue(group, id)
 
-	# Set parameter definition and set config values to default values
+	# Set new parameter definition and set config values to default values
 	def setParameterDefinition(self, parameterDefinition: dict, config: dict | None = None):
 		self.idList = {}
 		self.parDef = {}
+		self.updateParameterDefinition(parameterDefinition, config)
 
+	# Update/enhance parameter defintion
+	def updateParameterDefinition(self, parameterDefinition: dict, config: dict | None = None):
 		# Complete parameter definition. Add defaults for missing attributes
 		for group in parameterDefinition:
 			for id in parameterDefinition[group]:
@@ -345,7 +348,7 @@ class TKConfigure:
 		return self.get(id)
 
 	# Set config value if new value is different from current value
-	def set(self, id: str, value):
+	def set(self, id: str, value, sync: bool = False):
 		newValue = self._validateValue(id, value, bCast=True)
 
 		if id not in self.config or 'value' not in self.config[id]:
@@ -354,6 +357,9 @@ class TKConfigure:
 			curValue = self.config.get(id, {}).get('value')
 			if newValue != curValue:
 				self.config.update({ id: { 'oldValue': curValue, 'value': newValue }})
+
+		if sync and id in self.widget:
+			self.syncWidget(id)
 		
 	# Set config value ['<id>'], shortcut for set(id)
 	def __setitem__(self, id: str, value):
