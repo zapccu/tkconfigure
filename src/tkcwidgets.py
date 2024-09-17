@@ -9,15 +9,20 @@ from typing import Literal
 
 class _TKCWidget:
 
+	# Widget class names
 	_WIDGETS_ = [ 'TKCSpinbox', 'TKCEntry', 'TKCListbox', 'TKCCheckbox', 'TKCRadiobuttons', 'TKCFlags' ]
 
 	def __init__(self, parent, id: str, inputtype: Literal['int','float','str','bits','complex'] = 'str',
-			  valrange: tuple = None, initvalue = None, onChange = None):
+			  valrange = None, initvalue = None, onChange = None):
 		self.parent    = parent
 		self.id        = id
 		self.inputtype = inputtype
 		self.onChange  = onChange
-		self.valrange  = valrange
+
+		if type(valrange) is tuple and len(valrange) == 1:
+			self.valrange = (0,) + valrange
+		else:
+			self.valrange  = valrange
 
 		# Set widget to initial value
 		if not self._validate(initvalue):
@@ -47,7 +52,7 @@ class _TKCWidget:
 
 	# Check if value is in valrange
 	def _checkRange(self, value) -> bool:
-		if self.valrange is None or len(self.valrange) < 2: return True
+		if self.valrange is None or len(self.valrange) == 0: return True
 		if type(self.valrange) is tuple:
 			if self.inputtype in ['int','float','complex']:
 				return self.valrange[0] <= value <= self.valrange[1]
@@ -80,14 +85,15 @@ class _TKCWidget:
 		except ValueError:
 			return False
 	
-	# Called when widget value has been changed
+	# Called when widget value has changed
 	def _update(self, event = None):
 		value = self._getWidgetValue()
 		if self._validate(value) and self._checkRange(value):
 			if value != self.var:
-				# Inform app (TKConfigure) about new widget value
 				self.var = value
-				self.onChange(self.id, value)
+				# Inform app (TKConfigure) about new widget value
+				if self.onChange is not None:
+					self.onChange(self.id, value)
 			return
 
 		# on error set widget value to initvalue

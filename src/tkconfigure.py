@@ -53,7 +53,8 @@ from typing import Literal
 #
 # {
 #    "parameter-name": {
-#       "value": parameter-value
+#       "value": parameter-value,
+#       "oldValue": previous-parameter-value
 #    },
 #    ... # Further parameter values
 # }
@@ -68,7 +69,7 @@ class TKConfigure:
 		self.types = { 'int': int, 'float': float, 'str': str, 'bits': int, 'complex': complex }
 
 		# Allowed parameter definition keys. Can be enhanced by method addKey()
-		self.attributes = [ 'inputtype', 'valrange', 'initvalue', 'widget', 'label', 'width', 'widgetattr' ]
+		self.attributes = [ 'inputtype', 'valrange', 'initvalue', 'widget', 'label', 'width', 'widgetattr', 'notify' ]
 
 		# Default values for parameter attributes
 		self.defaults = {
@@ -78,7 +79,8 @@ class TKConfigure:
 			'widget':     'TKCEntry',
 			'label':      '',
 			'width':      20,
-			'widgetattr': {}
+			'widgetattr': {},
+			'notify':     None
 		}
 
 		# Parameter ids: ['<id>'] -> <group>
@@ -97,6 +99,7 @@ class TKConfigure:
 		self.notifyChange = None
 		self.notifyError  = None
 
+	# Inform app about change of config value
 	def notify(self, onchange=None, onerror=None):
 		self.notifyChange = onchange
 		self.notifyError  = onerror
@@ -247,7 +250,7 @@ class TKConfigure:
 			self.setConfig(config)
 
 	# Get current parameter definition as dictionary:
-	# all paramters, all parameterss of specified group or specified parameter id
+	# all paramters, all parameters of specified group or specified parameter id
 	def getParameterDefinition(self, group: str | None = None, id: str | None = None) -> dict:
 		if id is None:
 			if group is None:
@@ -343,7 +346,7 @@ class TKConfigure:
 		else:
 			return None
 
-	# Get config value ['<id>'], shortcut for get(id)
+	# Get config value ['<id>'], shortcut for get(id) with returndefault=True and sync=False
 	def __getitem__(self, id: str):
 		return self.get(id)
 
@@ -361,7 +364,7 @@ class TKConfigure:
 		if sync and id in self.widget:
 			self.syncWidget(id)
 		
-	# Set config value ['<id>'], shortcut for set(id)
+	# Set config value ['<id>'], shortcut for set(id) with sync=False
 	def __setitem__(self, id: str, value):
 		self.set(id, value)
 
@@ -427,16 +430,17 @@ class TKConfigure:
 			lblText = self.getPar(group, id, 'label')
 			if lblText != '':
 				# Two columns: label and input widget
-				lbl = tk.Label(master, text=lblText, justify='left', anchor='w')
+				lblId = 'lbl_' + id
+				self.widget[lblId] = tk.Label(master, text=lblText, justify='left', anchor='w')
 
 				if singlecol:
 					# Two rows, label in first row, input widget in second
-					lbl.grid(columnspan=2, column=0, row=row, sticky='w', padx=padx, pady=pady)
+					self.widget[lblId].grid(columnspan=2, column=0, row=row, sticky='w', padx=padx, pady=pady)
 					row += 1
 					self.widget[id].grid(columnspan=2, column=0, row=row, sticky='w', padx=padx, pady=pady)
 				else:
 					# One row, label and input widget side by side
-					lbl.grid(column=0, row=row, sticky='w', padx=padx, pady=pady)
+					self.widget[lblId].grid(column=0, row=row, sticky='w', padx=padx, pady=pady)
 					self.widget[id].grid(column=1, row=row, sticky='w', padx=padx, pady=pady)
 			else:
 				# One column (no label)
@@ -476,6 +480,12 @@ class TKConfigure:
 			self.createWidgets(self.widget[g], group=g, singlecol=singlecol, startrow=0, padx=padx, pady=pady, *args, **kwargs)
 
 		return row
+	
+	# Delete an input mask, destroy all widgets
+	def deleteMask(self):
+		for w in self.widget:
+			self.widget[w].destroy()
+		self.widget.clear()
 	
 	# Show Toplevel window with input mask. Return True, if config has been changed
 	def showDialog(self, master, width: int = 0, height: int = 0, title: str = None, groupwidth=0, padx: int = 0, pady: int = 0, groups: list = [],
@@ -526,7 +536,15 @@ class TKConfigure:
 		if id in self.idList:
 			oldValue = self.get(id, returndefault=False)
 			self.set(id, value)
-			if self.notifyChange is not None: self.notifyChange(id, oldValue, value)
+
+			# Inform app about change of specific widget value
+			parCfg = self.getIdDefinition(id)
+			if 'notify' in parCfg and parCfg['notify'] is not None:
+				parCfg['notify'](oldValue, value)
+
+			# Inform app about change of any widget value
+			if self.notifyChange is not None:
+				self.notifyChange(id, oldValue, value)
 
 # Create a new configuration object by cloning 
 def TKConfigureCopy(config: TKConfigure) -> TKConfigure:
