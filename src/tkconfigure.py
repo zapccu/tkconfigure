@@ -48,6 +48,13 @@ from typing import Literal
 #   width -      Width of the input widget in characters, default = 20
 #   widgetattr - Dictionary with additional TKInter widget attributes,
 #                default = {}
+#   notify -     Calback function. Called when widget value has changed with
+#                old value and new value as parameters.
+#   row -        Row of widget relative to group (starts with 0 for 1st group
+#                widget)
+#   column -     Column of widget. Grid column is calculated by multiplying
+#                this value with the columns parameter, which is 2 if the 
+#                label and the widget are placed side-by-side.
 #
 # Parameter value dictionary:
 #
@@ -69,7 +76,7 @@ class TKConfigure:
 		self.types = { 'int': int, 'float': float, 'str': str, 'bits': int, 'complex': complex }
 
 		# Allowed parameter definition keys. Can be enhanced by method addKey()
-		self.attributes = [ 'inputtype', 'valrange', 'initvalue', 'widget', 'label', 'width', 'widgetattr', 'notify' ]
+		self.attributes = [ 'inputtype', 'valrange', 'initvalue', 'widget', 'label', 'width', 'widgetattr', 'notify', 'row', 'column' ]
 
 		# Default values for parameter attributes
 		self.defaults = {
@@ -80,7 +87,9 @@ class TKConfigure:
 			'label':      '',
 			'width':      20,
 			'widgetattr': {},
-			'notify':     None
+			'notify':     None,
+			'row':        -1,
+			'column':     -1
 		}
 
 		# Parameter ids: ['<id>'] -> <group>
@@ -411,7 +420,7 @@ class TKConfigure:
 			self.set(id, self.widget[id].get())
 
 	# Create widgets for specified parameter group, return number of next free row
-	def createWidgets(self, master, group: str = '', singlecol: bool = False, startrow: int = 0, padx=0, pady=0, *args, **kwargs):
+	def createWidgets(self, master, group: str = '', columns: int = 2, startrow: int = 0, padx=0, pady=0, *args, **kwargs):
 		self._validateGroupId(group=group)
 		row = startrow
 
@@ -427,24 +436,30 @@ class TKConfigure:
 			if len(widgetattr) > 0:
 				self.widget[id].config(**widgetattr)
 
+			grow = self.getPar(group, id, 'row')
+			if grow != -1: row = grow
+			gcol = self.getPar(group, id, 'column')
+			if gcol == -1: gcol = 0
+			gcol *= columns
+
 			lblText = self.getPar(group, id, 'label')
 			if lblText != '':
 				# Two columns: label and input widget
 				lblId = 'lbl_' + id
 				self.widget[lblId] = tk.Label(master, text=lblText, justify='left', anchor='w')
 
-				if singlecol:
+				if columns == 1:
 					# Two rows, label in first row, input widget in second
-					self.widget[lblId].grid(columnspan=2, column=0, row=row, sticky='w', padx=padx, pady=pady)
+					self.widget[lblId].grid(columnspan=2, column=gcol, row=row, sticky='w', padx=padx, pady=pady)
 					row += 1
-					self.widget[id].grid(columnspan=2, column=0, row=row, sticky='w', padx=padx, pady=pady)
+					self.widget[id].grid(columnspan=2, column=gcol, row=row, sticky='w', padx=padx, pady=pady)
 				else:
 					# One row, label and input widget side by side
-					self.widget[lblId].grid(column=0, row=row, sticky='w', padx=padx, pady=pady)
-					self.widget[id].grid(column=1, row=row, sticky='w', padx=padx, pady=pady)
+					self.widget[lblId].grid(column=gcol, row=row, sticky='w', padx=padx, pady=pady)
+					self.widget[id].grid(column=gcol+1, row=row, sticky='w', padx=padx, pady=pady)
 			else:
-				# One column (no label)
-				self.widget[id].grid(columnspan=2, column=0, row=row, sticky='w', padx=padx, pady=pady)
+				# One column (no label), i.e. radio button groups
+				self.widget[id].grid(columnspan=2, column=gcol, row=row, sticky='nw', padx=padx, pady=pady)
 			
 			row += 1
 
@@ -453,7 +468,7 @@ class TKConfigure:
 	# Create the mask for all or some parameter groups, return row number of next free row
 	# Before the widgets are created, the current parameter values are saved as old values (for specified groups only).
 	# So every change can be reverted by calling undo()
-	def createMask(self, master, singlecol: bool = False, startrow: int = 0, padx: int = 0, pady: int = 0, groups: list = [],
+	def createMask(self, master, columns: int = 2, startrow: int = 0, padx: int = 0, pady: int = 0, groups: list = [],
 					groupwidth: int = 0, colwidth: tuple = (50.0, 50.0), *args, **kwargs):
 		row = startrow
 		grpList = list(self.parDef.keys()) if len(groups) == 0 else groups
@@ -467,7 +482,7 @@ class TKConfigure:
 			self.widget[g].grid(columnspan=2, row=row, column=0, padx=padx, pady=pady, sticky='we')
 
 			# Configure width of columns
-			if singlecol:
+			if columns == 1:
 				self.widget[g].columnconfigure(0, minsize=groupwidth)
 			else:
 				self.widget[g].columnconfigure(0, minsize=int(groupwidth * colwidth[0] / 100.0))
@@ -477,7 +492,7 @@ class TKConfigure:
 			row += 1
 
 			# Create widgets as childs of label frame. Row number is relative to label frame, starts from 0
-			self.createWidgets(self.widget[g], group=g, singlecol=singlecol, startrow=0, padx=padx, pady=pady, *args, **kwargs)
+			self.createWidgets(self.widget[g], group=g, columns=columns, startrow=0, padx=padx, pady=pady, *args, **kwargs)
 
 		return row
 	
