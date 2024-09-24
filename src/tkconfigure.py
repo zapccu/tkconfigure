@@ -42,7 +42,8 @@ from typing import Literal
 #                  'int','float': tuple with value range (from, to [,increment])
 #                  'bits': list of string representing the bits (index 0 = bit 0)
 #   widget -     The type of the input widget, either 'TKCEntry', 'TKCSpinbox',
-#                'TKCCheckbox', 'TKCListbox', 'TKCRadiobuttons', 'TKCFlags'.
+#                'TKCCheckbox', 'TKCListbox', 'TKCRadiobuttons', 'TKCFlags',
+#                'TKCSlider'
 #                Default = 'TKCEntry'
 #   label -      Text placed in front of the widget, default = '' (no text)
 #   width -      Width of the input widget in characters, default = 20
@@ -75,7 +76,7 @@ class TKConfigure:
 		# Input types:
 		self.types = { 'int': int, 'float': float, 'str': str, 'bits': int, 'complex': complex }
 
-		# Allowed parameter definition keys. Can be enhanced by method addKey()
+		# Allowed parameter definition keys
 		self.attributes = [ 'inputtype', 'valrange', 'initvalue', 'widget', 'label', 'width', 'widgetattr', 'notify', 'row', 'column' ]
 
 		# Default values for parameter attributes
@@ -427,9 +428,9 @@ class TKConfigure:
 		for id in self.parDef[group]:
 			# Create the input widget
 			widgetClass = globals()[self.getPar(group, id, 'widget')]
-			justify = 'left' if self.getPar(group, id, 'inputtype') == 'str' else 'right'
+			# justify = 'left' if self.getPar(group, id, 'inputtype') == 'str' else 'right'
 			self.widget[id] = widgetClass(master, id=id, inputtype=self.getPar(group, id, 'inputtype'), valrange=self.getPar(group, id, 'valrange'),
-					initvalue=self.get(id), onChange=self._onChange, justify=justify, width=self.getPar(group, id, 'width'), *args, **kwargs)
+					initvalue=self.get(id), onChange=self._onChange, width=self.getPar(group, id, 'width'), *args, **kwargs)
 			
 			# Set parameter specific widget attributes
 			widgetattr = self.getPar(group, id, 'widgetattr')

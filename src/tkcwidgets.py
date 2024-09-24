@@ -10,7 +10,7 @@ from typing import Literal
 class _TKCWidget:
 
 	# Widget class names
-	_WIDGETS_ = [ 'TKCSpinbox', 'TKCEntry', 'TKCListbox', 'TKCCheckbox', 'TKCRadiobuttons', 'TKCFlags' ]
+	_WIDGETS_ = [ 'TKCSpinbox', 'TKCEntry', 'TKCListbox', 'TKCCheckbox', 'TKCRadiobuttons', 'TKCFlags', 'TKCSlider' ]
 
 	def __init__(self, parent, id: str, inputtype: Literal['int','float','str','bits','complex'] = 'str',
 			  valrange = None, initvalue = None, onChange = None):
@@ -193,8 +193,11 @@ class TKCSpinbox(_TKCWidget, tk.Spinbox):
 
 		_TKCWidget.__init__(self, parent, id, inputtype=inputtype, valrange=valrange, initvalue=initvalue, onChange=onChange)
 
+		justify = 'left' if inputtype == 'str' else 'right'
+
 		self.config(
 			textvariable=self.sbVar,
+			justify=justify,
 			command=self._update,	# Spinner control pressed
 		)
 
@@ -251,8 +254,11 @@ class TKCEntry(_TKCWidget, tk.Entry):
 		tk.Entry.__init__(self, parent, *args, **kwargs)
 		_TKCWidget.__init__(self, parent, id, inputtype=inputtype, valrange=valrange, initvalue=initvalue, onChange=onChange)
 
+		justify = 'left' if inputtype == 'str' else 'right'
+
 		self.config(
-			textvariable=self.enVar
+			textvariable=self.enVar,
+			justify=justify
 		)
 	
 	def _getWidgetValue(self):
@@ -455,3 +461,36 @@ class TKCFlags(_TKCWidget, tk.LabelFrame):
 			if v & f:
 				var.set(f)
 			f *= 2
+
+class TKCSlider(_TKCWidget, tk.Scale):
+	def __init__(self, parent, id: str, inputtype: Literal['int','float'] = 'int',
+				valrange: tuple = (0, 0, 1), initvalue = None, onChange = None, *args, **kwargs):
+		# Check parameters
+		if inputtype not in ['int','float']:
+			raise ValueError(f"{id}: Invalid inputtype {inputtype}")
+		_TKCWidget._checkParameters(inputtype, valrange, vrMandatory=True)
+
+		# Slider value is stored in a text variable and casted to input type by function _getWidgetValue()
+		self.slVar = tk.StringVar()
+
+		if type(valrange) is tuple:
+			self.increment = valrange[2] if len(valrange) == 3 else 1
+			tk.Scale.__init__(self, parent, orient='horizontal', from_=valrange[0], to=valrange[1], *args, **kwargs)
+		else:
+			raise TypeError(valrange)
+
+		_TKCWidget.__init__(self, parent, id, inputtype=inputtype, valrange=valrange, initvalue=initvalue, onChange=onChange)
+
+		self.config(
+			variable=self.slVar,
+			command=self._update,	# Slider moved
+		)
+
+	def _getWidgetValue(self):
+		if self.inputtype == 'int':
+			return int(self.slVar.get())
+		elif self.inputtype == 'float':
+			return float(self.slVar.get())
+		
+	def _setWidgetValue(self, value):
+		self.slVar.set(str(value))
