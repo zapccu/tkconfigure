@@ -109,6 +109,11 @@ class TKConfigure:
 		self.notifyChange = None
 		self.notifyError  = None
 
+	# Dump current parameter values
+	def dumpConfig(self):
+		for k in self.config:
+			print(f"{k} = {self.config[k]['value']}")
+
 	# Inform app about change of config value
 	def notify(self, onchange=None, onerror=None):
 		self.notifyChange = onchange
@@ -373,6 +378,11 @@ class TKConfigure:
 
 		if sync and id in self.widget:
 			self.syncWidget(id)
+
+	# Set multiple config values
+	def setValues(self, sync: bool = False, **kwargs):
+		for id in kwargs:
+			self.set(id, kwargs[id], sync)
 		
 	# Set config value ['<id>'], shortcut for set(id) with sync=False
 	def __setitem__(self, id: str, value):
