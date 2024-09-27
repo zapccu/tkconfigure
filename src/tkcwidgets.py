@@ -474,8 +474,11 @@ class TKCSlider(_TKCWidget, tk.Scale):
 		self.slVar = tk.StringVar()
 
 		if type(valrange) is tuple:
-			self.increment = valrange[2] if len(valrange) == 3 else 1
-			tk.Scale.__init__(self, parent, orient='horizontal', from_=valrange[0], to=valrange[1], *args, **kwargs)
+			if len(valrange) < 3:
+				self.increment = 0.1 if valrange[1]-valrange[0] <= 1 else 1
+			else:
+				self.increment = valrange[2]
+			tk.Scale.__init__(self, parent, orient='horizontal', from_=valrange[0], to=valrange[1], resolution=self.increment, *args, **kwargs)
 		else:
 			raise TypeError(valrange)
 
