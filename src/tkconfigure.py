@@ -350,6 +350,10 @@ class TKConfigure:
 		else:
 			raise ValueError(f"No value assigned to parameter {id}")
 		
+	# Get multiple parameter values
+	def getValues(self, idList: list[str], returndefault: bool = True, sync: bool = False) -> list:
+		return [self.get(id, returndefault=returndefault, sync=sync) for id in idList]
+		
 	# Get parameter id list
 	def getIds(self) -> list:
 		return list(self.idList.keys())
