@@ -74,7 +74,7 @@ class TKConfigure:
 	def __init__(self, parameterdefinition: dict | None = None, config: dict | None = None):
 
 		# Input types:
-		self.types = { 'int': int, 'float': float, 'str': str, 'bits': int, 'complex': complex }
+		self.types = { 'int': int, 'float': float, 'str': str, 'bits': int, 'complex': complex, 'list': list }
 
 		# Allowed parameter definition keys
 		self.attributes = [ 'inputtype', 'valrange', 'initvalue', 'widget', 'label', 'width', 'widgetattr', 'notify', 'row', 'column' ]
@@ -151,12 +151,15 @@ class TKConfigure:
 		
 		# Validate valrange / initvalue / inputtype
 		if type(valrange) is tuple:
-			if len(valrange) < 2 or len(valrange) > 3:
+			if (len(valrange) < 2 or len(valrange) > 3) and inputtype != 'str':
 				raise ValueError(f"valrange tuple must have 2 or 3 values for parameter {id}")
 			if inputtype in ['int','float','complex'] and (initvalue < valrange[0] or initvalue > valrange[1]):
 				raise ValueError(f"initvalue out of valrange for parameter {id}")
-			elif inputtype == 'str' and (len(initvalue) < valrange[0] or len(initvalue) > valrange[1]):
-				raise ValueError(f"Length of initvalue string out of valrange for paramter {id}")
+			elif inputtype == 'str':
+				if len(valrange) == 2 and (len(initvalue) < valrange[0] or len(initvalue) > valrange[1]):
+					raise ValueError(f"Length of initvalue string out of valrange for parameter {id}")	
+				elif len(valrange) == 1 and not re.match('^#([0-9a-fA-F]{2}){3}$', initvalue):
+					raise ValueError(f"initvalue doesn't match regular expression for parameter {id}")
 			elif inputtype == 'bits':
 				raise TypeError(f"Unsupported inputtype {inputtype} for valrange tuple for parameter {id}")
 		elif type(valrange) is list:
@@ -172,7 +175,7 @@ class TKConfigure:
 				raise TypeError(f"Unsupported inputtype {inputtype}for valrange list for parameter {id}")
 
 	# Validate parameter value
-	def _validateValue(self, id: str, value, bCast = False):
+	def _validateValue(self, id: str, value, bCast: bool = False):
 		self._validateGroupId(id=id)
 		parCfg = self.getPar(self.idList[id], id)
 
@@ -192,8 +195,11 @@ class TKConfigure:
 		if type(parCfg['valrange']) is tuple:
 			if parCfg['inputtype'] in ['int','float','complex'] and (value < parCfg['valrange'][0] or value > parCfg['valrange'][1]):
 				raise ValueError(f"Value {value} not in valrange for parameter {id}")
-			elif parCfg['inputtype'] == 'str' and (len(str(value)) < parCfg['valrange'][0] or (len(str(value))) > parCfg['valrange'][1]):
-				raise ValueError(f"String lenght out of valrange for parameter {id}")
+			elif parCfg['inputtype'] == 'str':
+				if len(parCfg['valrange']) == 2 and (len(str(value)) < parCfg['valrange'][0] or (len(str(value))) > parCfg['valrange'][1]):
+					raise ValueError(f"String lenght out of valrange for parameter {id}")
+				elif len(parCfg['valrange']) == 1 and type(parCfg['valrange']) is str and not re.match('^#([0-9a-fA-F]{2}){3}$', value):
+					raise ValueError(f"String doesn't match regular expression for parameter {id}")
 		elif type(parCfg['valrange']) is list:
 			if type(value) is str and value not in parCfg['valrange']:
 				raise ValueError(f"Value {value} not in valrange list for parameter {id}")
@@ -335,7 +341,7 @@ class TKConfigure:
 	def getConfig(self) -> dict:
 		return self.config
 	
-	# Get current config from dictionary as JSONx^
+	# Get current config from dictionary as JSON
 	def getJSON(self, indent: int = 4) -> str:
 		return json.dumps(self.config, indent=indent)
 
@@ -352,7 +358,10 @@ class TKConfigure:
 		
 	# Get multiple parameter values
 	def getValues(self, idList: list[str], returndefault: bool = True, sync: bool = False) -> list:
-		return [self.get(id, returndefault=returndefault, sync=sync) for id in idList]
+		if type(idList) is not list:
+			raise("Parameter idList must be of type list")
+		values = [self.get(id, returndefault=returndefault, sync=sync) for id in idList]
+		return values
 		
 	# Get parameter id list
 	def getIds(self) -> list:
@@ -364,6 +373,12 @@ class TKConfigure:
 			return self.widget[id]
 		else:
 			return None
+	
+	# Enable/disable widget
+	def setWidgetState(self, id: str, state: str):
+		widget = self.getWidget(id)
+		if widget is not None:
+			widget.config(state=state)
 
 	# Get config value ['<id>'], shortcut for get(id) with returndefault=True and sync=False
 	def __getitem__(self, id: str):
@@ -441,7 +456,8 @@ class TKConfigure:
 
 		for id in self.parDef[group]:
 			# Create the input widget
-			widgetClass = globals()[self.getPar(group, id, 'widget')]
+			widgetType = self.getPar(group, id, 'widget')
+			widgetClass = globals()[widgetType]
 			# justify = 'left' if self.getPar(group, id, 'inputtype') == 'str' else 'right'
 			self.widget[id] = widgetClass(master, id=id, inputtype=self.getPar(group, id, 'inputtype'), valrange=self.getPar(group, id, 'valrange'),
 					initvalue=self.get(id), onChange=self._onChange, width=self.getPar(group, id, 'width'), *args, **kwargs)
@@ -459,19 +475,23 @@ class TKConfigure:
 
 			lblText = self.getPar(group, id, 'label')
 			if lblText != '':
-				# Two columns: label and input widget
-				lblId = 'lbl_' + id
-				self.widget[lblId] = tk.Label(master, text=lblText, justify='left', anchor='w')
-
-				if columns == 1:
-					# Two rows, label in first row, input widget in second
-					self.widget[lblId].grid(columnspan=2, column=gcol, row=row, sticky='w', padx=padx, pady=pady)
-					row += 1
-					self.widget[id].grid(columnspan=2, column=gcol, row=row, sticky='w', padx=padx, pady=pady)
+				if widgetType == 'TKCCheckbox':
+					self.widget[id].config(text=lblText)
+					self.widget[id].grid(columnspan=2, column=gcol, row=row, sticky='nw', padx=padx, pady=pady)
 				else:
-					# One row, label and input widget side by side
-					self.widget[lblId].grid(column=gcol, row=row, sticky='w', padx=padx, pady=pady)
-					self.widget[id].grid(column=gcol+1, row=row, sticky='w', padx=padx, pady=pady)
+					# Two widgets: label and input widget
+					lblId = 'lbl_' + id
+					self.widget[lblId] = tk.Label(master, text=lblText, justify='left', anchor='w')
+
+					if columns == 1:
+						# Two rows, label in first row, input widget in second
+						self.widget[lblId].grid(columnspan=2, column=gcol, row=row, sticky='w', padx=padx, pady=pady)
+						row += 1
+						self.widget[id].grid(columnspan=2, column=gcol, row=row, sticky='w', padx=padx, pady=pady)
+					else:
+						# One row, label and input widget side by side
+						self.widget[lblId].grid(column=gcol, row=row, sticky='w', padx=padx, pady=pady)
+						self.widget[id].grid(column=gcol+1, row=row, sticky='w', padx=padx, pady=pady)
 			else:
 				# One column (no label), i.e. radio button groups
 				self.widget[id].grid(columnspan=2, column=gcol, row=row, sticky='nw', padx=padx, pady=pady)
@@ -484,7 +504,7 @@ class TKConfigure:
 	# Before the widgets are created, the current parameter values are saved as old values (for specified groups only).
 	# So every change can be reverted by calling undo()
 	def createMask(self, master, columns: int = 2, startrow: int = 0, padx: int = 0, pady: int = 0, groups: list = [],
-					groupwidth: int = 0, colwidth: tuple = (50.0, 50.0), *args, **kwargs):
+					groupwidth: int = 0, colwidth: tuple = (50.0, 50.0), *args, **kwargs) -> int:
 		row = startrow
 		grpList = list(self.parDef.keys()) if len(groups) == 0 else groups
 
@@ -564,8 +584,11 @@ class TKConfigure:
 	# Called when widget value has changed
 	def _onChange(self, id: str, value):
 		if id in self.idList:
-			oldValue = self.get(id, returndefault=False)
-			self.set(id, value)
+			if value is not None:
+				oldValue = self.get(id, returndefault=False)
+				self.set(id, value)
+			else:
+				oldValue = None
 
 			# Inform app about change of specific widget value
 			parCfg = self.getIdDefinition(id)

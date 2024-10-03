@@ -1,6 +1,8 @@
 import tkinter as tk
 import tkinter.ttk as ttk
+from tkinter.colorchooser import askcolor
 from typing import Literal
+import re
 
 
 ###############################################################################
@@ -10,19 +12,15 @@ from typing import Literal
 class _TKCWidget:
 
 	# Widget class names
-	_WIDGETS_ = [ 'TKCSpinbox', 'TKCEntry', 'TKCListbox', 'TKCCheckbox', 'TKCRadiobuttons', 'TKCFlags', 'TKCSlider' ]
+	_WIDGETS_ = [ 'TKCSpinbox', 'TKCEntry', 'TKCListbox', 'TKCCheckbox', 'TKCRadiobuttons', 'TKCFlags', 'TKCSlider', 'TKCColor', 'TKCColortable' ]
 
-	def __init__(self, parent, id: str, inputtype: Literal['int','float','str','bits','complex'] = 'str',
+	def __init__(self, parent, id: str, inputtype: Literal['int','float','str','bits','complex','list'] = 'str',
 			  valrange = None, initvalue = None, onChange = None):
 		self.parent    = parent
 		self.id        = id
 		self.inputtype = inputtype
 		self.onChange  = onChange
-
-		if type(valrange) is tuple and len(valrange) == 1:
-			self.valrange = (0,) + valrange
-		else:
-			self.valrange  = valrange
+		self.valrange  = valrange
 
 		# Set widget to initial value
 		if not self._validate(initvalue):
@@ -38,13 +36,14 @@ class _TKCWidget:
 	def _checkParameters(inputtype: str, valrange: list | tuple | None, vrMandatory: bool = False):
 		if inputtype is None:
 			raise ValueError('inputtype == None')
-		if inputtype not in ['int', 'float', 'str', 'bits', 'complex']:
+		if inputtype not in ['int', 'float', 'str', 'bits', 'complex', 'list']:
 			raise ValueError(f"Invalid inputtype {inputtype}")
 
 		if valrange is None and vrMandatory:
-			raise ValueError('valrange == None')
-		elif type(valrange) is tuple and (len(valrange) < 2 or len(valrange) > 3):
-			raise ValueError(valrange)
+			raise ValueError('Missing mandatory valrange')
+		elif type(valrange) is tuple:
+			if inputtype != 'str' and (len(valrange) < 2 or len(valrange) > 3):
+				raise ValueError("valrange must contain 2 or 3 values")
 		elif type(valrange) is list and len(valrange) == 0:
 			raise ValueError('valrange == []')
 		elif valrange is not None and type(valrange) not in [list, tuple]:
@@ -52,23 +51,38 @@ class _TKCWidget:
 
 	# Check if value is in valrange
 	def _checkRange(self, value) -> bool:
-		if self.valrange is None or len(self.valrange) == 0: return True
-		if type(self.valrange) is tuple:
-			if self.inputtype in ['int','float','complex']:
-				return self.valrange[0] <= value <= self.valrange[1]
-			elif self.inputtype == 'str':
-				return self.valrange[0] <= len(str(value)) <= self.valrange[1]
-			else:
-				return False
-		elif type(self.valrange) is list:
-			if self.inputtype == 'str':
-				return value in self.valrange
-			elif self.inputtype == 'bits':
-				return 0 <= int(value) < 2**len(self.valrange)
-			elif self.inputtype in ['int','float']:
-				return 0 <= int(value) < len(self.valrange)
-			else:
-				return False
+		if self.valrange is None or len(self.valrange) == 0:
+			return True
+		try:
+			if type(self.valrange) is tuple:
+				if self.inputtype in ['int','float','complex']:
+					return self.valrange[0] <= value <= self.valrange[1]
+				elif self.inputtype == 'str':
+					if len(self.valrange) == 2:
+						return self.valrange[0] <= len(str(value)) <= self.valrange[1]
+					elif len(self.valrange) == 1:
+						return True if re.match(self.valrange[0], value) else False
+					else:
+						return True
+				elif self.inputtype == 'list':
+					if len(self.valrange) == 2:
+						return self.valrange[0] <= len(value) <= self.valrange[1]
+					else:
+						return True
+				else:
+					return False
+			elif type(self.valrange) is list:
+				if self.inputtype == 'str':
+					return value in self.valrange
+				elif self.inputtype == 'bits':
+					return 0 <= int(value) < 2**len(self.valrange)
+				elif self.inputtype in ['int','float']:
+					return 0 <= int(value) < len(self.valrange)
+				else:
+					return False
+		except:
+			print(f"_checkRange exception: inputtype={self.inputtype}, valrange={self.valrange}, value={value}")
+			return False
 
 	# Validate value
 	def _validate(self, value) -> bool:
@@ -88,24 +102,28 @@ class _TKCWidget:
 	# Called when widget value has changed
 	def _update(self, event = None):
 		value = self._getWidgetValue()
-		if self._validate(value) and self._checkRange(value):
-			if value != self.var:
-				self.var = value
-				# Inform app (TKConfigure) about new widget value
-				if self.onChange is not None:
-					self.onChange(self.id, value)
-			return
+		if value is None:
+			if self.onChange is not None:
+				self.onChange(self.id, None)
+		else:
+			if self._validate(value) and self._checkRange(value):
+				if value != self.var:
+					self.var = value
+					# Inform app (TKConfigure) about new widget value
+					if self.onChange is not None:
+						self.onChange(self.id, value)
+				return
 
-		# on error set widget value to initvalue
-		if self.initvalue is not None:
-			self.set(self.initvalue)
+			# on error set widget value to initvalue
+			if self.initvalue is not None:
+				self.set(self.initvalue)
 
-	# Return the current value of a widget. By default this function has no implementation.
+	# Return the current value of a widget. By default this function returns None.
 	# Function must be overwritten in child classes to return a valid value with the
 	# appropriate type, i.e. the index of the selected entry of a TKCListbox.
 	# This function is called by _update() to retrieve the current widget value.
 	def _getWidgetValue(self):
-		pass
+		return None
 	
 	# Set the widget value. By default this function has no implementation.
 	# Function must be overwritten in child classed to set a widget to the specified value.
@@ -464,7 +482,7 @@ class TKCFlags(_TKCWidget, tk.LabelFrame):
 
 class TKCSlider(_TKCWidget, tk.Scale):
 	def __init__(self, parent, id: str, inputtype: Literal['int','float'] = 'int',
-				valrange: tuple = (0, 0, 1), initvalue = None, onChange = None, *args, **kwargs):
+				valrange: tuple = (0, 0, 1), initvalue = None, onChange = None, width=50, *args, **kwargs):
 		# Check parameters
 		if inputtype not in ['int','float']:
 			raise ValueError(f"{id}: Invalid inputtype {inputtype}")
@@ -486,6 +504,7 @@ class TKCSlider(_TKCWidget, tk.Scale):
 
 		self.config(
 			variable=self.slVar,
+			length=width,
 			command=self._update,	# Slider moved
 		)
 
@@ -497,3 +516,88 @@ class TKCSlider(_TKCWidget, tk.Scale):
 		
 	def _setWidgetValue(self, value):
 		self.slVar.set(str(value))
+
+class TKCColor(_TKCWidget, tk.Canvas):
+	def __init__(self, parent, id: str, inputtype: Literal['str'] = 'str',
+				valrange: tuple = ('^#([0-9a-fA-F]{2}){3}$',), initvalue = '#000000', onChange = None, width = 50, height = 20, *args, **kwargs):
+		# Check parameters
+		if inputtype != 'str':
+			raise ValueError(f"{id}: Invalid inputtype {inputtype}. Only 'str' supported by TKCColortable")
+		_TKCWidget._checkParameters(inputtype, valrange, vrMandatory=False)
+
+		self.width = width
+		self.height = height
+
+		self.cVar = tk.StringVar()
+
+		tk.Canvas.__init__(self, parent, width=width, height=height)
+		_TKCWidget.__init__(self, parent, id, inputtype=inputtype, initvalue=initvalue, onChange=onChange)
+
+		self.bind("<Button-1>", self._askColor)
+
+	def _str2rgb(self, color) -> tuple[int, int, int]:
+		return tuple(int(color[i:i+2], 16) for i in (1, 3, 5))
+	
+	def _setWidgetValue(self, value):
+		self.cVar.set(value)
+
+		# Update color rectangle
+		self.delete('all')
+		self.create_rectangle(0, 0, self.winfo_reqwidth(), self.winfo_reqheight(), fill=value, width=0)
+		rgb = self._str2rgb(value)
+		txtColor = '#{:02X}{:02X}{:02X}'.format(255-rgb[0], 255-rgb[1], 255-rgb[2])
+		self.create_text(5, int(self.winfo_reqheight()/2), text=value, fill=txtColor, anchor='w')
+
+	def _getWidgetValue(self):
+		return self.cVar.get()
+
+	# Show color chooser
+	def _askColor(self, event = None):
+		colorBytes, colorStr = askcolor(color=self.cVar.get())
+		if colorStr is not None:
+			self._setWidgetValue(colorStr.upper())
+			self._update()
+
+class TKCColortable(_TKCWidget, tk.Canvas):
+	def __init__(self, parent, id: str, inputtype: Literal['list'] = 'list',
+				initvalue = [[0, 0, 0]], onChange = None, width = 50, *args, **kwargs):
+		# Check parameters
+		if inputtype != 'list':
+			raise ValueError(f"{id}: Invalid inputtype {inputtype}. Only 'list' supported by TKCColortable")
+
+		self.width = width
+		self.height = 15
+		self.cVar = initvalue
+
+		tk.Canvas.__init__(self, parent, width=width, height=15)
+		_TKCWidget.__init__(self, parent, id, inputtype=inputtype, initvalue=initvalue, onChange=onChange)
+
+		self.bind("<Button-1>", self._update)
+
+	def _setWidgetValue(self, value):
+		self.cVar = value
+
+		n = len(value)
+		w = self.winfo_reqwidth()
+		y2 = self.winfo_reqheight()
+
+		# Delete all color rectangles
+		self.delete('all')
+
+		if n > w:
+			d = n/w
+			t = 0
+			for x in range(w):
+				idx = int(t)
+				color = '#{:02X}{:02X}{:02X}'.format(int(value[idx][0]*255), int(value[idx][1]*255), int(value[idx][2]*255))
+				self.create_rectangle(x, 0, x+1, y2, fill=color, width=0)
+				t += d
+		else:
+			d = int(w/n)
+			x = 0
+			for i in range(n):
+				color = '#{:02X}{:02X}{:02X}'.format(int(value[i][0]*255), int(value[i][1]*255), int(value[i][2]*255))
+				self.create_rectangle(int(x), 0, int(x+d), self.winfo_reqheight(), fill=color)
+				x += d
+
+
