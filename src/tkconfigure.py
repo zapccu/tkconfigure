@@ -77,7 +77,9 @@ class TKConfigure:
 		self.types = { 'int': int, 'float': float, 'str': str, 'bits': int, 'complex': complex, 'list': list }
 
 		# Allowed parameter definition keys
-		self.attributes = [ 'inputtype', 'valrange', 'initvalue', 'widget', 'label', 'width', 'widgetattr', 'notify', 'row', 'column' ]
+		self.attributes = [
+			'inputtype', 'valrange', 'initvalue', 'widget', 'label', 'width', 'widgetattr', 'notify', 'row', 'column', 'readonly'
+		]
 
 		# Default values for parameter attributes
 		self.defaults = {
@@ -90,7 +92,8 @@ class TKConfigure:
 			'widgetattr': {},
 			'notify':     None,
 			'row':        -1,
-			'column':     -1
+			'column':     -1,
+			'readonly':   False
 		}
 
 		# Parameter ids: ['<id>'] -> <group>
@@ -106,6 +109,7 @@ class TKConfigure:
 		# Created widgets: ['<id>'] -> <widget>
 		self.widget = {}
 
+		# Callback functions, can be set with notify()
 		self.notifyChange = None
 		self.notifyError  = None
 
@@ -291,12 +295,6 @@ class TKConfigure:
 		self._validateGroupId(id=id)
 		return self.parDef[self.idList[id]][id]
 
-	# Add new key to parameter definition
-	def addAttribute(self, attribute: str, default = None):
-		if attribute in self.attributes: raise KeyError(f"Parameter attribute {attribute} already exists")
-		self.attributes.append(attribute)
-		self.defaults[attribute] = default
-
 	# Add a new parameter to current configuration
 	def addParameter(self, group: str, id: str, widget: str | None = None, **kwargs):
 		if widget not in _TKCWidget._WIDGETS_: raise ValueError(f"Unknown widget type {widget}")
@@ -459,8 +457,13 @@ class TKConfigure:
 			widgetType = self.getPar(group, id, 'widget')
 			widgetClass = globals()[widgetType]
 			# justify = 'left' if self.getPar(group, id, 'inputtype') == 'str' else 'right'
-			self.widget[id] = widgetClass(master, id=id, inputtype=self.getPar(group, id, 'inputtype'), valrange=self.getPar(group, id, 'valrange'),
-					initvalue=self.get(id), onChange=self._onChange, width=self.getPar(group, id, 'width'), *args, **kwargs)
+			try:
+				self.widget[id] = widgetClass(master, id=id, inputtype=self.getPar(group, id, 'inputtype'),
+						valrange=self.getPar(group, id, 'valrange'), initvalue=self.get(id), readonly=self.getPar(group, id, 'readonly'),
+						onChange=self._onChange, width=self.getPar(group, id, 'width'), *args, **kwargs)
+			except Exception as e:
+				print(type(e), e)
+				raise RuntimeError(f"Error while creating widget for parameter {id}")
 			
 			# Set parameter specific widget attributes
 			widgetattr = self.getPar(group, id, 'widgetattr')

@@ -1,8 +1,11 @@
 import tkinter as tk
 import tkinter.ttk as ttk
+import re
+
 from tkinter.colorchooser import askcolor
 from typing import Literal
-import re
+
+import coloreditor as ce
 
 
 ###############################################################################
@@ -15,12 +18,13 @@ class _TKCWidget:
 	_WIDGETS_ = [ 'TKCSpinbox', 'TKCEntry', 'TKCListbox', 'TKCCheckbox', 'TKCRadiobuttons', 'TKCFlags', 'TKCSlider', 'TKCColor', 'TKCColortable' ]
 
 	def __init__(self, parent, id: str, inputtype: Literal['int','float','str','bits','complex','list'] = 'str',
-			  valrange = None, initvalue = None, onChange = None):
+			  valrange = None, initvalue = None, onChange = None, readonly: bool = False):
 		self.parent    = parent
 		self.id        = id
 		self.inputtype = inputtype
 		self.onChange  = onChange
 		self.valrange  = valrange
+		self.readonly  = readonly
 
 		# Set widget to initial value
 		if not self._validate(initvalue):
@@ -28,7 +32,7 @@ class _TKCWidget:
 		self.initvalue = initvalue
 		self.set(initvalue)
 
-		if onChange is not None:
+		if not readonly and onChange is not None:
 			self.bind('<FocusOut>', self._update)
 			self.bind('<Return>', self._update)
 
@@ -101,6 +105,8 @@ class _TKCWidget:
 	
 	# Called when widget value has changed
 	def _update(self, event = None):
+		if self.readonly: return
+
 		value = self._getWidgetValue()
 		if value is None:
 			if self.onChange is not None:
@@ -193,7 +199,8 @@ class _TKCWidget:
 class TKCSpinbox(_TKCWidget, tk.Spinbox):
 
 	def __init__(self, parent, id: str, inputtype: Literal['int','float','str'] = 'int',
-				valrange: tuple = (0, 0, 1), initvalue = None, onChange = None, *args, **kwargs):
+				valrange: tuple = (0, 0, 1), initvalue = None, onChange = None, readonly: bool = False,
+				*args, **kwargs):
 		# Check parameters
 		if inputtype not in ['int','float','str']:
 			raise ValueError(f"{id}: Invalid inputtype {inputtype}")
@@ -209,7 +216,7 @@ class TKCSpinbox(_TKCWidget, tk.Spinbox):
 		elif type(valrange) is list:
 			tk.Spinbox.__init__(self, parent, values=valrange, *args, **kwargs)
 
-		_TKCWidget.__init__(self, parent, id, inputtype=inputtype, valrange=valrange, initvalue=initvalue, onChange=onChange)
+		_TKCWidget.__init__(self, parent, id, inputtype=inputtype, valrange=valrange, initvalue=initvalue, onChange=onChange, readonly=readonly)
 
 		justify = 'left' if inputtype == 'str' else 'right'
 
@@ -261,7 +268,8 @@ class TKCSpinbox(_TKCWidget, tk.Spinbox):
 class TKCEntry(_TKCWidget, tk.Entry):
 
 	def __init__(self, parent, id: str, inputtype: Literal['int','float','str','complex'] = 'str',
-				valrange: tuple = None, initvalue = None, onChange = None, *args, **kwargs):
+				valrange: tuple = None, initvalue = None, onChange = None, readonly: bool = False,
+				*args, **kwargs):
 		# Check parameters
 		if inputtype not in ['int','float','str','complex']:
 			raise ValueError(f"{id}: Invalid inputtype {inputtype}")
@@ -270,7 +278,7 @@ class TKCEntry(_TKCWidget, tk.Entry):
 		self.enVar = tk.StringVar()
 
 		tk.Entry.__init__(self, parent, *args, **kwargs)
-		_TKCWidget.__init__(self, parent, id, inputtype=inputtype, valrange=valrange, initvalue=initvalue, onChange=onChange)
+		_TKCWidget.__init__(self, parent, id, inputtype=inputtype, valrange=valrange, initvalue=initvalue, onChange=onChange, readonly=readonly)
 
 		justify = 'left' if inputtype == 'str' else 'right'
 
@@ -323,7 +331,8 @@ class TKCEntry(_TKCWidget, tk.Entry):
 class TKCListbox(_TKCWidget, ttk.Combobox):
 
 	def __init__(self, parent, id: str, inputtype: Literal['int','float','str'] = 'str',
-				valrange = None, initvalue = 0, onChange = None, *args, **kwargs):
+				valrange = None, initvalue = 0, onChange = None, readonly: bool = False,
+				*args, **kwargs):
 		# Check parameters
 		if inputtype not in ['int','float','str']:
 			raise ValueError(f"{id}: Invalid inputtype {inputtype}")
@@ -332,10 +341,11 @@ class TKCListbox(_TKCWidget, ttk.Combobox):
 		self.lbVar = tk.StringVar()
 
 		ttk.Combobox.__init__(self, parent, state='readonly', values=valrange, *args, **kwargs)
-		_TKCWidget.__init__(self, parent, id, inputtype=inputtype, valrange=valrange, initvalue=initvalue, onChange=onChange)
+		_TKCWidget.__init__(self, parent, id, inputtype=inputtype, valrange=valrange, initvalue=initvalue, onChange=onChange, readonly=readonly)
 
 		self.config(textvariable=self.lbVar)
-		self.bind("<<ComboboxSelected>>", self._update)
+		if not self.readonly:
+			self.bind("<<ComboboxSelected>>", self._update)
 
 	def _getWidgetValue(self):
 		if self.inputtype == 'int':
@@ -354,7 +364,8 @@ class TKCListbox(_TKCWidget, ttk.Combobox):
 class TKCCheckbox(_TKCWidget, tk.Checkbutton):
 		
 	def __init__(self, parent, id: str, inputtype: Literal['int'] = 'int',
-				valrange = None, initvalue = 0, onChange = None, *args, **kwargs):
+				valrange = None, initvalue = 0, onChange = None, readonly: bool = False,
+				*args, **kwargs):
 		# Check parameters
 		if inputtype != 'int':
 			raise ValueError(f"{id}: Invalid inputtype {inputtype}. Only 'int' supported by TKCCheckbox")
@@ -363,7 +374,7 @@ class TKCCheckbox(_TKCWidget, tk.Checkbutton):
 		self.intVar = tk.IntVar()
 
 		tk.Checkbutton.__init__(self, parent, *args, **kwargs)
-		_TKCWidget.__init__(self, parent, id, inputtype=inputtype, valrange=valrange, initvalue=initvalue, onChange=onChange)
+		_TKCWidget.__init__(self, parent, id, inputtype=inputtype, valrange=valrange, initvalue=initvalue, onChange=onChange, readonly=readonly)
 
 		self.config(
 			text=id,
@@ -386,7 +397,8 @@ class TKCCheckbox(_TKCWidget, tk.Checkbutton):
 class TKCRadiobuttons(_TKCWidget, tk.LabelFrame):
 
 	def __init__(self, parent, id: str, inputtype: Literal['int'] = 'int',
-				valrange = None, initvalue = 0, onChange = None, *args, **kwargs):
+				valrange = None, initvalue = 0, onChange = None, readonly: bool = False,
+				*args, **kwargs):
 		# Check parameters
 		if inputtype != 'int':
 			raise ValueError(f"{id}: Invalid inputtype {inputtype}. Only 'int' supported by TKCRadiobuttons")
@@ -397,7 +409,7 @@ class TKCRadiobuttons(_TKCWidget, tk.LabelFrame):
 		self.rbVar = tk.IntVar()
 
 		tk.LabelFrame.__init__(self, parent)
-		_TKCWidget.__init__(self, parent, id, inputtype=inputtype, valrange=valrange, initvalue=initvalue, onChange=onChange)
+		_TKCWidget.__init__(self, parent, id, inputtype=inputtype, valrange=valrange, initvalue=initvalue, onChange=onChange, readonly=readonly)
 
 		self.config(text=id)
 		self.rButtons = []
@@ -428,7 +440,8 @@ class TKCRadiobuttons(_TKCWidget, tk.LabelFrame):
 class TKCFlags(_TKCWidget, tk.LabelFrame):
 
 	def __init__(self, parent, id: str, inputtype: Literal['bits'] = 'bits',
-				valrange = None, initvalue = 0, onChange = None, *args, **kwargs):
+				valrange = None, initvalue = 0, onChange = None, readonly: bool = False,
+				*args, **kwargs):
 		# Check parameters
 		if inputtype != 'bits':
 			raise ValueError(f"{id}: Invalid inputtype {inputtype}. Only 'bits' supported by TKCFlags")
@@ -443,7 +456,7 @@ class TKCFlags(_TKCWidget, tk.LabelFrame):
 
 		# Create and initialize widgets
 		tk.LabelFrame.__init__(self, parent)
-		_TKCWidget.__init__(self, parent, id, inputtype=inputtype, valrange=valrange, initvalue=initvalue, onChange=onChange)
+		_TKCWidget.__init__(self, parent, id, inputtype=inputtype, valrange=valrange, initvalue=initvalue, onChange=onChange, readonly=readonly)
 		self.config(text=id)
 
 		f = 1
@@ -482,7 +495,8 @@ class TKCFlags(_TKCWidget, tk.LabelFrame):
 
 class TKCSlider(_TKCWidget, tk.Scale):
 	def __init__(self, parent, id: str, inputtype: Literal['int','float'] = 'int',
-				valrange: tuple = (0, 0, 1), initvalue = None, onChange = None, width=50, *args, **kwargs):
+				valrange: tuple = (0, 0, 1), initvalue = None, onChange = None, readonly: bool = False, width=50,
+				*args, **kwargs):
 		# Check parameters
 		if inputtype not in ['int','float']:
 			raise ValueError(f"{id}: Invalid inputtype {inputtype}")
@@ -500,7 +514,7 @@ class TKCSlider(_TKCWidget, tk.Scale):
 		else:
 			raise TypeError(valrange)
 
-		_TKCWidget.__init__(self, parent, id, inputtype=inputtype, valrange=valrange, initvalue=initvalue, onChange=onChange)
+		_TKCWidget.__init__(self, parent, id, inputtype=inputtype, valrange=valrange, initvalue=initvalue, onChange=onChange, readonly=readonly)
 
 		self.config(
 			variable=self.slVar,
@@ -519,7 +533,8 @@ class TKCSlider(_TKCWidget, tk.Scale):
 
 class TKCColor(_TKCWidget, tk.Canvas):
 	def __init__(self, parent, id: str, inputtype: Literal['str'] = 'str',
-				valrange: tuple = ('^#([0-9a-fA-F]{2}){3}$',), initvalue = '#000000', onChange = None, width = 50, height = 20, *args, **kwargs):
+				valrange: tuple = ('^#([0-9a-fA-F]{2}){3}$',), initvalue = '#000000', onChange = None, readonly: bool = False,
+				width = 50, height = 20, *args, **kwargs):
 		# Check parameters
 		if inputtype != 'str':
 			raise ValueError(f"{id}: Invalid inputtype {inputtype}. Only 'str' supported by TKCColortable")
@@ -531,9 +546,10 @@ class TKCColor(_TKCWidget, tk.Canvas):
 		self.cVar = tk.StringVar()
 
 		tk.Canvas.__init__(self, parent, width=width, height=height)
-		_TKCWidget.__init__(self, parent, id, inputtype=inputtype, initvalue=initvalue, onChange=onChange)
+		_TKCWidget.__init__(self, parent, id, inputtype=inputtype, initvalue=initvalue, onChange=onChange, readonly=readonly)
 
-		self.bind("<Button-1>", self._askColor)
+		if not self.readonly:
+			self.bind("<Button-1>", self._askColor)
 
 	def _str2rgb(self, color) -> tuple[int, int, int]:
 		return tuple(int(color[i:i+2], 16) for i in (1, 3, 5))
@@ -560,44 +576,53 @@ class TKCColor(_TKCWidget, tk.Canvas):
 
 class TKCColortable(_TKCWidget, tk.Canvas):
 	def __init__(self, parent, id: str, inputtype: Literal['list'] = 'list',
-				initvalue = [[0, 0, 0]], onChange = None, width = 50, *args, **kwargs):
+				initvalue = [[0, 0, 0]], onChange = None, readonly: bool = False, width = 50,
+				*args, **kwargs):
 		# Check parameters
 		if inputtype != 'list':
 			raise ValueError(f"{id}: Invalid inputtype {inputtype}. Only 'list' supported by TKCColortable")
 
-		self.width = width
+		self.parent = parent
+		self.width  = width
 		self.height = 15
-		self.cVar = initvalue
+		self.cVar   = initvalue
+		self.cEdit  = ce.ColorEditor(parent, width=400, height=600)
 
 		tk.Canvas.__init__(self, parent, width=width, height=15)
-		_TKCWidget.__init__(self, parent, id, inputtype=inputtype, initvalue=initvalue, onChange=onChange)
+		_TKCWidget.__init__(self, parent, id, inputtype=inputtype, initvalue=initvalue, onChange=onChange, readonly=readonly)
 
-		self.bind("<Button-1>", self._update)
+		if not self.readonly:
+			self.bind("<Button-1>", self._showEditor)
+
+	def _showEditor(self, event = None):
+		if self.cEdit.show():
+			self._setWidgetValue(self.cEdit.masterSettings['colorTable'])
+			self._update()
 
 	def _setWidgetValue(self, value):
 		self.cVar = value
 
-		n = len(value)
-		w = self.winfo_reqwidth()
-		y2 = self.winfo_reqheight()
+		tableSize = len(value)
+		width  = self.winfo_reqwidth()
+		height = self.winfo_reqheight()
 
 		# Delete all color rectangles
 		self.delete('all')
 
-		if n > w:
-			d = n/w
+		if tableSize > width:
+			d = tableSize/width
 			t = 0
-			for x in range(w):
+			for x in range(width):
 				idx = int(t)
 				color = '#{:02X}{:02X}{:02X}'.format(int(value[idx][0]*255), int(value[idx][1]*255), int(value[idx][2]*255))
-				self.create_rectangle(x, 0, x+1, y2, fill=color, width=0)
+				self.create_line(x, 0, x, height, fill=color)
 				t += d
 		else:
-			d = int(w/n)
+			d = int(width/tableSize)
 			x = 0
-			for i in range(n):
+			for i in range(tableSize):
 				color = '#{:02X}{:02X}{:02X}'.format(int(value[i][0]*255), int(value[i][1]*255), int(value[i][2]*255))
-				self.create_rectangle(int(x), 0, int(x+d), self.winfo_reqheight(), fill=color)
+				self.create_rectangle(int(x), 0, int(x+d), height, fill=color, width=0)
 				x += d
 
 
