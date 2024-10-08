@@ -15,7 +15,17 @@ import coloreditor as ce
 class _TKCWidget:
 
 	# Widget class names
-	_WIDGETS_ = [ 'TKCSpinbox', 'TKCEntry', 'TKCListbox', 'TKCCheckbox', 'TKCRadiobuttons', 'TKCFlags', 'TKCSlider', 'TKCColor', 'TKCColortable' ]
+	_WIDGETS_ = [
+		'TKCSpinbox',         # Numeric entry field with spinner
+		'TKCEntry',           # Entry field
+		'TKCListbox',         # Dopdown list
+		'TKCCheckbox',        # A single checkbox
+		'TKCRadiobuttons',    # Multiple radio buttons
+		'TKCFlags',           # Multiple checkboxes representing single bits
+		'TKCSlider',          # Horizontal slider
+		'TKCColor',           # Rectangle with color => click opens color chooser
+		'TKCColortable'       # Rectangle with color table => click opens color editor
+	]
 
 	def __init__(self, parent, id: str, inputtype: Literal['int','float','str','bits','complex','list'] = 'str',
 			  valrange = None, initvalue = None, onChange = None, readonly: bool = False):
@@ -574,9 +584,10 @@ class TKCColor(_TKCWidget, tk.Canvas):
 			self._setWidgetValue(colorStr.upper())
 			self._update()
 
+		
 class TKCColortable(_TKCWidget, tk.Canvas):
 	def __init__(self, parent, id: str, inputtype: Literal['list'] = 'list',
-				initvalue = [[0, 0, 0]], onChange = None, readonly: bool = False, width = 50,
+				initvalue = [], onChange = None, readonly: bool = False, width = 50,
 				*args, **kwargs):
 		# Check parameters
 		if inputtype != 'list':
@@ -595,34 +606,41 @@ class TKCColortable(_TKCWidget, tk.Canvas):
 			self.bind("<Button-1>", self._showEditor)
 
 	def _showEditor(self, event = None):
-		if self.cEdit.show():
+		if self.cEdit.show(palettename=self.cVar[2], palettedef=self.cVar[0]):
 			self._setWidgetValue(self.cEdit.masterSettings['colorTable'])
 			self._update()
 
 	def _setWidgetValue(self, value):
 		self.cVar = value
 
-		tableSize = len(value)
+		paletteDef, colorTable, paletteName = value
 		width  = self.winfo_reqwidth()
 		height = self.winfo_reqheight()
 
 		# Delete all color rectangles
 		self.delete('all')
 
-		if tableSize > width:
-			d = tableSize/width
+		if paletteDef['size'] > width:
+			d = paletteDef['size']/width
 			t = 0
 			for x in range(width):
 				idx = int(t)
-				color = '#{:02X}{:02X}{:02X}'.format(int(value[idx][0]*255), int(value[idx][1]*255), int(value[idx][2]*255))
+				color = '#{:02X}{:02X}{:02X}'.format(
+					int(colorTable[idx][0]*255), int(colorTable[idx][1]*255), int(colorTable[idx][2]*255)
+				)
 				self.create_line(x, 0, x, height, fill=color)
 				t += d
 		else:
-			d = int(width/tableSize)
+			d = int(width/paletteDef['size'])
 			x = 0
-			for i in range(tableSize):
-				color = '#{:02X}{:02X}{:02X}'.format(int(value[i][0]*255), int(value[i][1]*255), int(value[i][2]*255))
+			for i in range(paletteDef['size']):
+				color = '#{:02X}{:02X}{:02X}'.format(
+					int(colorTable[i][0]*255), int(colorTable[i][1]*255), int(colorTable[i][2]*255)
+				)
 				self.create_rectangle(int(x), 0, int(x+d), height, fill=color, width=0)
 				x += d
+
+	def _getWidgetValue(self):
+		return self.cVar
 
 

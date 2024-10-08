@@ -56,6 +56,7 @@ from typing import Literal
 #   column -     Column of widget. Grid column is calculated by multiplying
 #                this value with the columns parameter, which is 2 if the 
 #                label and the widget are placed side-by-side.
+#   readonly   - If set to True, widget value cannot be changed  
 #
 # Parameter value dictionary:
 #
@@ -324,6 +325,12 @@ class TKConfigure:
 			return self.parDef[group][id][attribute]
 		else:
 			return self.defaults[attribute]
+	
+	# Set parameter attribute
+	def setPar(self, group: str, id: str, attribute: str, attrvalue):
+		self._validateGroupId(group=group, id=id)
+		self.parDef[group][id][attribute] = attrvalue
+		self._validateParDef(id, self.parDef[group][id])
 
 	# Set current config from dictionary
 	def setConfig(self, config: dict):
@@ -360,10 +367,19 @@ class TKConfigure:
 			raise("Parameter idList must be of type list")
 		values = [self.get(id, returndefault=returndefault, sync=sync) for id in idList]
 		return values
-		
-	# Get parameter id list
-	def getIds(self) -> list:
-		return list(self.idList.keys())
+	
+	# Get all values of a group as dict
+	def getGroupValues(self, group: str) -> dict:
+		groupDef = self.getGroupDefinition(group)
+		valueDict = { an: self.get(an) for an in groupDef }
+
+	# Get parameter id list. Either all ids or ids of specified group
+	def getIds(self, group: str | None = None) -> list:
+		if group is None:
+			return list(self.idList.keys())
+		else:
+			groupDef = self.getGroupDefinition(group)
+			return list(groupDef.keys())
 		
 	# Get parameter widget
 	def getWidget(self, id: str):

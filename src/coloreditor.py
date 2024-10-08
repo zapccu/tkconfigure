@@ -2,13 +2,13 @@
 from tkinter import *
 from tkinter import colorchooser
 from tkinter.scrolledtext import ScrolledText
-from tkconfigure import TKConfigure
 import math
-# import tkconfigure as tkc
+import tkconfigure as tkc
 
+
+# Default palette definitions, key = palette type
 defaultPaletteDef = {
 	"Linear": {
-		"name": "Grey",
 		"type": "Linear",
 		"size": 4096,
 		"par": {
@@ -16,7 +16,6 @@ defaultPaletteDef = {
 		}
 	},
 	"Sinus": {
-		"name": "Sinus",
 		"type": "Sinus",
 		"size": 4096,
 		"par": {
@@ -27,15 +26,15 @@ defaultPaletteDef = {
 
 class ColorEditor:
 
-	def __init__(self, mainWindow, width: int = 400, height: int = 600, palettedef: dict = defaultPaletteDef['Linear']):
-		self.paletteDef = palettedef
-		self.orgPaletteDef = palettedef
+	def __init__(self, mainWindow, width: int = 400, height: int = 600, palettename: str = 'Grey', palettedef: dict = defaultPaletteDef['Linear']):
+		self.orgPaletteDef  = palettedef
+		self.orgPaletteName = palettename
 
-		self.masterSettings = TKConfigure({
+		self.masterSettings = tkc.TKConfigure({
 			"Palette": {
 				'paletteName': {
 					'inputtype': 'str',
-					'initvalue': palettedef['name'],
+					'initvalue': palettename,
 					'widget':    'TKCEntry',
 					'label':     'Palette name',
 					'width':     15
@@ -59,7 +58,7 @@ class ColorEditor:
 				},
 				'colorTable': {
 					'inputtype': 'list',
-					'initvalue': self.createPaletteFromDef(palettedef),
+					'initvalue': [ palettedef, self.createPaletteFromDef(palettedef), palettename ],
 					'widget':    'TKCColortable',
 					'width':     width-20,
 					'readonly':  True
@@ -75,29 +74,30 @@ class ColorEditor:
 		self.apply      = False
 
 	# Show color editor
-	def show(self, palettedef: dict | None = None) -> bool:
+	def show(self, title: str = "Color Editor", palettename: str | None = None, palettedef: dict | None = None) -> bool:
 		# Create the window
 		self.dlg = Toplevel(self.mainWindow)
 		self.dlg.geometry(f"{self.width}x{self.height}")
-		self.dlg.title("Color Editor")
+		self.dlg.grab_set()
+		self.dlg.title(title)
 
-		if palettedef is not None:
-			self.paletteDef = palettedef
-			self.orgPaletteDef = palettedef
-			colorTable = self.createPaletteFromDef(palettedef)
+		if palettename is not None and palettedef is not None:
+			self.orgPaletteDef  = palettedef
+			self.orgPaletteName = palettename
+
 			self.masterSettings.setValues(
-				paletteName=palettedef['name'],
+				paletteName=palettename,
 				paletteType=palettedef['type'],
 				paletteSize=palettedef['size'],
-				colorTable=colorTable
+				colorTable=[palettedef, self.createPaletteFromDef(palettedef), palettename]
 			)
 			self.typeSettings = self.paletteTypeSettings(palettedef)
 
 		# Create widgets
-		self.tsrow = self.masterSettings.createMask(self.dlg, padx=3, pady=5)
+		self.tsrow  = self.masterSettings.createMask(self.dlg, padx=3, pady=5)
 		self.btnrow = self.typeSettings.createMask(self.dlg, startrow=self.tsrow, padx=3, pady=5)
 
-		# Buttons
+		# Create buttons
 		self.btnOk     = Button(self.dlg, text="Ok", command=lambda: self.setApply(True))
 		self.btnCancel = Button(self.dlg, text="Cancel", command=lambda: self.setApply(False))
 		self.btnReset  = Button(self.dlg, text="Reset", command=lambda: self.onReset())
@@ -137,7 +137,7 @@ class ColorEditor:
 					'width':     80,
 					'notify':    self.onPointChanged
 				}
-			return TKConfigure(colorSettings)
+			return tkc.TKConfigure(colorSettings)
 		
 		elif palettedef['type'] == 'Sinus':
 			colorSettings = { 'Thetas': {} }
@@ -151,20 +151,22 @@ class ColorEditor:
 					'width':     120,
 					'notify':    self.onThetaChanged
 				}
-			return TKConfigure(colorSettings)
+			return tkc.TKConfigure(colorSettings)
 	
+	# Convert html color string to rgb 0..1 (f=255) or rgbi 0..255 (f=1)
 	def _str2rgb(self, html: str, f = 1) -> tuple:
-		return [int(html[i:i+2], 16) / f for i in (1, 3, 5)]
+		return tuple([int(html[i:i+2], 16) / f for i in (1, 3, 5)])
 	
+	# Create list of count values with linear distribution between start and end
 	def _linspace(self, start, end, count) -> list:
 		if type(start) is tuple and type(end) is tuple:
 			if len(start) != len(end):
 				raise ValueError("tuples start and end must have the same size")
-			d = [ (end[i]-start[i]) / (count-1) for i in range(3) ]
-			return [ [start[i]+d[i]*n for i in range(3)] for n in range(count) ]
+			d = [ (end[i] - start[i]) / (count-1) for i in range(3) ]
+			return [ [start[i] + d[i] * n for i in range(3)] for n in range(count) ]
 		else:
 			d = (end-start)/(count-1)
-			return [ start+d*i for i in range(count) ]
+			return [ start + d * i for i in range(count) ]
 
 	def createLinearPalette(self, numColors: int, colorPoints: list = [(1., 1., 1.)]) -> list:
 		if len(colorPoints) == 0:
@@ -202,58 +204,59 @@ class ColorEditor:
 		else:
 			raise ValueError("Illegal palette type")
 
+	def updateColorTable(self, palettedef: dict):
+		colortable = self.createPaletteFromDef(palettedef)
+		self.masterSettings.set('colorTable', [palettedef, colortable, self.masterSettings['paletteName']], sync=True)
+
+	# Palette type changed
 	def onPaletteTypeChanged(self, oldValue, newValue):
 		paletteDef = defaultPaletteDef[newValue]
-		colortable = self.createPaletteFromDef(paletteDef)
+
+		# Update color table
+		self.updateColorTable(paletteDef)
+
+		# Recreate type specific part of the input mask
 		self.typeSettings.deleteMask()
 		self.typeSettings = self.paletteTypeSettings(paletteDef)
-		self.masterSettings.setValues(colorTable=colortable, sync=True)
 		self.btnrow = self.typeSettings.createMask(self.dlg, startrow=self.tsrow, padx=3, pady=5)
 
+	# Linear palette: Color point changed
 	def onPointChanged(self, oldValue, newValue):
-		nPoints = len(self.paletteDef['par']['colorPoints'])
-		pList = [ 'point' + str(i) for i in range(nPoints) ]
-		colorPoints = self.typeSettings.getValues(pList)
-		rgbPoints = [ self._str2rgb(cp, f=255) for cp in colorPoints ]
-		colorTable = self.createPaletteFromDef({
-			"type": self.paletteDef['type'],
+		colorPoints = self.typeSettings.getIds(group='Color points')
+		rgbPoints = [ self._str2rgb(self.typeSettings[cp], f=255) for cp in colorPoints ]
+		self.updateColorTable({
+			"type": self.masterSettings['paletteType'],
 			"size": self.masterSettings['paletteSize'],
 			"par": {
 				"colorPoints": rgbPoints
 			}
 		})
-		self.masterSettings.set('colorTable', colorTable, sync=True)
 
+	# Sinus palette: One of the theta values changed
 	def onThetaChanged(self, oldValue, newValue):
 		thetas = [ self.typeSettings['theta1'], self.typeSettings['theta2'], self.typeSettings['theta3'] ]
-		colorTable = self.createPaletteFromDef({
+		self.updateColorTable({
 			"type": "Sinus",
 			"size": self.masterSettings['paletteSize'],
 			"par": {
 				"thetas": thetas
 			}
 		})
-		self.masterSettings.set('colorTable', colorTable, sync=True)
 
+	# Button OK or CANCEL pressed
 	def setApply(self, apply: bool):
 		self.apply = apply
-		if apply:
-			self.paletteDef = {
-				'name': self.masterSettings['paletteNamw'],
-				'type': self.masterSettings['paletteType'],
-				'size': self.masterSettings['size'],
-				'par':  { }
-			}
-			if self.masterSettings['type'] == 'Linear':
-				self.paletteDef['par']['colorPoints'] = [ self._str2rgb(cp, f=255) for cp in self.typeSettings['Color points'] ]
-			elif self.masterSettings['type'] == 'Sinus':
-				self.paletteDef['par']['thetas'] = [ self._str2rgb(cp, f=255) for cp in self.typeSettings['Thetas'] ]
+
+		# Close dialog window
 		self.dlg.destroy()
 
+	# Button RESET pressed
 	def onReset(self):
-		self.paletteDef = self.orgPaletteDef
-		colortable = self.createPaletteFromDef(self.paletteDef)
 		self.typeSettings.deleteMask()
-		self.typeSettings = self.paletteTypeSettings(self.paletteDef)
-		self.masterSettings.setValues(paletteName=self.paletteDef['name'], paletteSize=self.paletteDef['size'], colorTable=colortable, sync=True)
+		self.typeSettings = self.paletteTypeSettings(self.orgPaletteDef)
+		self.masterSettings.setValues(
+			paletteName=self.orgPaletteName,
+			paletteSize=self.orgPaletteDef['size'],
+			colorTable=[self.orgPaletteDef, self.createPaletteFromDef(self.orgPaletteDef), self.orgPaletteName],
+			sync=True)
 		self.btnrow = self.typeSettings.createMask(self.dlg, startrow=self.tsrow, padx=3, pady=5)
