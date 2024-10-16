@@ -333,21 +333,21 @@ class TKConfigure:
 		self.parDef[group][id][attribute] = attrvalue
 		self._validateParDef(id, self.parDef[group][id])
 
-	# Set current config from dictionary
+	# Set current config values from dictionary
 	def setConfig(self, config: dict):
 		self._validateConfig(config)
 		self.config = {}
 		self.config.update(config)
 
-	# Set current config from JSON data
+	# Set current config values from JSON data
 	def setJSON(self, jsonData: str):
 		self.setConfig(json.loads(jsonData))
 
-	# Get current config as dictionary
+	# Get current config values as dictionary
 	def getConfig(self) -> dict:
 		return self.config
 	
-	# Get current config from dictionary as JSON
+	# Get current config values from dictionary as JSON
 	def getJSON(self, indent: int = 4) -> str:
 		return json.dumps(self.config, indent=indent)
 
@@ -472,6 +472,7 @@ class TKConfigure:
 		elif id in self.widget:
 			self.set(id, self.widget[id].get())
 
+	# Called when button linked to widget is pressed
 	def onParEditButton(self, id: str, master, title: str, settings):
 		parCfg = self.getIdDefinition(id)
 		padx   = 10
@@ -479,6 +480,7 @@ class TKConfigure:
 		width  = 0
 		height = 0
 
+		# Dialog dimensions and padding can defined in parameter "widgetattr"
 		if 'widgetattr' in parCfg:
 			width, height, padx, pady = TKConfigure._getDictValues(
 				parCfg['widgetattr'], ['width', 'height', 'padx', 'pady'], {
@@ -489,12 +491,13 @@ class TKConfigure:
 		if parCfg['widget'] == 'TKCDialog':
 			if width == 0: width  = max(settings.maxWidth * 3 + 2 * padx, 150)
 			if height == 0: height = max(len(settings.idList.keys()) * (55 + pady), 200)
-			bState = settings.showDialog(master, title=title, width=width, height=height, padx=padx, pady=pady)
+			if settings.showDialog(master, title=title, width=width, height=height, padx=padx, pady=pady):
+				self.syncWidget(id)
+
 		elif parCfg['widget'] == 'TKCColortable':
 			cEdit = ce.ColorEditor(master, width=max(width, 400), height=max(height, 600))
-			bState = cEdit.show(title=title, colorTable=settings)
-		if bState:
-			self.syncWidget(id)
+			if cEdit.show(title=title, colorTable=settings):
+				self.set(id, cEdit.masterSettings['colorTable'], sync=True)
 
 	# Create widgets for specified parameter group, return number of next free row
 	def createWidgets(self, master, group: str = '', columns: int = 2, startrow: int = 0, padx=0, pady=0, *args, **kwargs):
@@ -527,9 +530,12 @@ class TKConfigure:
 
 			lblText = self.getPar(group, id, 'label')
 			if lblText != '':
+				# Checkbox: label = text of checkbox
 				if widgetType == 'TKCCheckbox':
 					self.widget[id].config(text=lblText)
 					self.widget[id].grid(columnspan=2, column=gcol, row=row, sticky='nw', padx=padx, pady=pady)
+
+				# Dialog windows: label = text of button
 				elif widgetType == 'TKCDialog' or widgetType == 'TKCColortable':
 					btnId = 'btn_' + id
 					idSettings = self.get(id)
@@ -537,6 +543,7 @@ class TKConfigure:
 								command=lambda i=id, m=master, t=lblText, s=idSettings: self.onParEditButton(i, m, t, s))
 					self.widget[btnId].grid(column=gcol, row=row, sticky='w', padx=padx, pady=pady)
 					self.widget[id].grid(column=gcol+1, row=row, sticky='w', padx=padx, pady=pady)
+
 				else:
 					# Two widgets: label and input widget
 					lblId = 'lbl_' + id
