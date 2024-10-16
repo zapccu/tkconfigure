@@ -74,14 +74,24 @@ class ColorEditor:
 		self.apply      = False
 
 	# Show color editor
-	def show(self, title: str = "Color Editor", palettename: str | None = None, palettedef: dict | None = None) -> bool:
+	def show(self, title: str = "Color Editor", colorTable: list | None = None, palettename: str | None = None, palettedef: dict | None = None) -> bool:
 		# Create the window
 		self.dlg = Toplevel(self.mainWindow)
 		self.dlg.geometry(f"{self.width}x{self.height}")
 		self.dlg.grab_set()
 		self.dlg.title(title)
 
-		if palettename is not None and palettedef is not None:
+		if colorTable is not None:
+			self.orgPaletteDef = colorTable[0]
+			self.orgPaletteName = colorTable[2]
+			self.masterSettings.setValues(
+				paletteName=colorTable[2],
+				paletteType=colorTable[0]['type'],
+				paletteSize=colorTable[0]['size'],
+				colorTable=colorTable
+			)
+			self.typeSettings = self.paletteTypeSettings(colorTable[0])
+		elif palettename is not None and palettedef is not None:
 			self.orgPaletteDef  = palettedef
 			self.orgPaletteName = palettename
 

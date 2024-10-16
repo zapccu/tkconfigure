@@ -5,6 +5,8 @@ from tkcwidgets import _TKCWidget
 
 from typing import Literal
 
+import coloreditor as ce
+
 ###############################################################################
 #
 # Create configuration objects
@@ -33,8 +35,9 @@ from typing import Literal
 #
 # Parameter attributes:
 #
-#   inputtype -  The input type, either 'int', 'float', 'str', 'bits', 'complex'
-#                default = 'str'
+#   inputtype -  The input type, either 'int', 'float', 'str', 'bits', 'complex',
+#                'list' or 'tkc'.
+#                Default = 'str'
 #   initvalue -  Initial parameter value, type must match inputtype,
 #                default = None
 #   valrange -   Depends on inputtype, default = None (no input validation)
@@ -43,7 +46,7 @@ from typing import Literal
 #                  'bits': list of string representing the bits (index 0 = bit 0)
 #   widget -     The type of the input widget, either 'TKCEntry', 'TKCSpinbox',
 #                'TKCCheckbox', 'TKCListbox', 'TKCRadiobuttons', 'TKCFlags',
-#                'TKCSlider'
+#                'TKCSlider', 'TKCColor', 'TKCColortable', 'TKCDialog'
 #                Default = 'TKCEntry'
 #   label -      Text placed in front of the widget, default = '' (no text)
 #   width -      Width of the input widget in characters, default = 20
@@ -75,7 +78,7 @@ class TKConfigure:
 	def __init__(self, parameterdefinition: dict | None = None, config: dict | None = None):
 
 		# Input types:
-		self.types = { 'int': int, 'float': float, 'str': str, 'bits': int, 'complex': complex, 'list': list }
+		self.types = { 'int': int, 'float': float, 'str': str, 'bits': int, 'complex': complex, 'list': list, 'tkc': TKConfigure }
 
 		# Allowed parameter definition keys
 		self.attributes = [
@@ -97,6 +100,9 @@ class TKConfigure:
 			'readonly':   False
 		}
 
+		# Maximum width of widgets
+		self.maxWidth = 0
+
 		# Parameter ids: ['<id>'] -> <group>
 		self.idList = {}
 		
@@ -114,10 +120,19 @@ class TKConfigure:
 		self.notifyChange = None
 		self.notifyError  = None
 
+	@staticmethod
+	def _getDictValues(dictionary: dict, attributes: list, defaults: dict = {}) -> list:
+		return [dictionary[a] if a in dictionary else (defaults[a] if a in defaults else None) for a in attributes ]
+
 	# Dump current parameter values
 	def dumpConfig(self):
-		for k in self.config:
-			print(f"{k} = {self.config[k]['value']}")
+		for id in self.config:
+			value = self.config[id]['value']
+			parCfg = self.getIdDefinition(id)
+			if parCfg['inputtype'] == 'tkc':
+				value.dumpConfig()
+			else:
+				print(f"{id} = {value}")
 
 	# Inform app about change of config value
 	def notify(self, onchange=None, onerror=None):
@@ -152,7 +167,7 @@ class TKConfigure:
 		
 		# Validate widget type
 		if parCfg['widget'] not in _TKCWidget._WIDGETS_:
-			raise ValueError(f"Unknown widget type for parameter {id}")
+			raise ValueError(f"Unknown widget type {parCfg['widget']} for parameter {id}")
 		
 		# Validate valrange / initvalue / inputtype
 		if type(valrange) is tuple:
@@ -178,6 +193,9 @@ class TKConfigure:
 				raise IndexError(f"initvalue out of valrange for parameter {id}")
 			elif inputtype in ['float', 'complex']:
 				raise TypeError(f"Unsupported inputtype {inputtype}for valrange list for parameter {id}")
+			
+		if 'width' in parCfg:
+			self.maxWidth = max(self.maxWidth, parCfg['width'])
 
 	# Validate parameter value
 	def _validateValue(self, id: str, value, bCast: bool = False):
@@ -296,23 +314,6 @@ class TKConfigure:
 		self._validateGroupId(id=id)
 		return self.parDef[self.idList[id]][id]
 
-	# Add a new parameter to current configuration
-	def addParameter(self, group: str, id: str, widget: str | None = None, **kwargs):
-		if widget not in _TKCWidget._WIDGETS_: raise ValueError(f"Unknown widget type {widget}")
-		if id in self.idList: raise KeyError(f"Parameter {id} already exists")
-		# Create new group if it doesn't exist
-		if group not in self.parDef: self.parDef[group] = {}
-		self.idList[id] = group
-
-		# Set parameter attributes to default, then overwrite by function parameters
-		self.parDef[group][id] = { **self.defaults }
-		for k in kwargs:
-			if k not in self.attributes: raise KeyError(f"Unknown parameter attribute {k}")
-			self.parDef[group][id][k] = kwargs[k]
-		
-		# Set config value of new parameter to default (initvalue)
-		self.setDefaultValue(group, id)
-
 	# Get parameter attribute(s)
 	def getPar(self, group: str, id: str, attribute: str | None = None):
 		self._validateGroupId(group=group, id=id)
@@ -361,17 +362,22 @@ class TKConfigure:
 		else:
 			raise ValueError(f"No value assigned to parameter {id}")
 		
-	# Get multiple parameter values
-	def getValues(self, idList: list[str], returndefault: bool = True, sync: bool = False) -> list:
-		if type(idList) is not list:
-			raise("Parameter idList must be of type list")
-		values = [self.get(id, returndefault=returndefault, sync=sync) for id in idList]
+	# Get multiple parameter values. If idList is None, all values will be returned
+	def getValues(self, idList: list[str] | None = None, returndefault: bool = True, sync: bool = False) -> list:
+		if idList is None:
+			ids = self.getIds()
+		else:
+			if type(idList) is not list:
+				raise("Parameter idList must be of type list")
+			ids = idList
+		values = [self.get(id, returndefault=returndefault, sync=sync) for id in ids]
 		return values
 	
 	# Get all values of a group as dict
 	def getGroupValues(self, group: str) -> dict:
 		groupDef = self.getGroupDefinition(group)
 		valueDict = { an: self.get(an) for an in groupDef }
+		return valueDict
 
 	# Get parameter id list. Either all ids or ids of specified group
 	def getIds(self, group: str | None = None) -> list:
@@ -381,7 +387,7 @@ class TKConfigure:
 			groupDef = self.getGroupDefinition(group)
 			return list(groupDef.keys())
 		
-	# Get parameter widget
+	# Get parameter widget object
 	def getWidget(self, id: str):
 		if id in self.widget:
 			return self.widget[id]
@@ -405,6 +411,7 @@ class TKConfigure:
 		if id not in self.config or 'value' not in self.config[id]:
 			self.config.update({ id: { 'oldValue': newValue, 'value': newValue }})
 		else:
+			# Store value if different from current value
 			curValue = self.config.get(id, {}).get('value')
 			if newValue != curValue:
 				self.config.update({ id: { 'oldValue': curValue, 'value': newValue }})
@@ -449,6 +456,8 @@ class TKConfigure:
 			raise KeyError(f"Widget for parameter {id} not found")
 		elif id in self.config:
 			self.widget[id].set(self.get(id))
+		else:
+			raise KeyError(f"Unknown parameter id {id}")
 
 	# Sync current config with widget value(s)
 	# Usually this function is not needed. Configuration is synced automatically when a widget value has been changed
@@ -462,6 +471,30 @@ class TKConfigure:
 			raise KeyError("Unknown parameter {id}")
 		elif id in self.widget:
 			self.set(id, self.widget[id].get())
+
+	def onParEditButton(self, id: str, master, title: str, settings):
+		parCfg = self.getIdDefinition(id)
+		padx   = 10
+		pady   = 5
+		width  = 0
+		height = 0
+
+		if 'widgetattr' in parCfg:
+			width, height, padx, pady = TKConfigure._getDictValues(
+				parCfg['widgetattr'], ['width', 'height', 'padx', 'pady'], {
+					'width': width, 'height': height, 'padx': padx, 'pady': pady
+				}
+			)
+		
+		if parCfg['widget'] == 'TKCDialog':
+			if width == 0: width  = max(settings.maxWidth * 3 + 2 * padx, 150)
+			if height == 0: height = max(len(settings.idList.keys()) * (55 + pady), 200)
+			bState = settings.showDialog(master, title=title, width=width, height=height, padx=padx, pady=pady)
+		elif parCfg['widget'] == 'TKCColortable':
+			cEdit = ce.ColorEditor(master, width=max(width, 400), height=max(height, 600))
+			bState = cEdit.show(title=title, colorTable=settings)
+		if bState:
+			self.syncWidget(id)
 
 	# Create widgets for specified parameter group, return number of next free row
 	def createWidgets(self, master, group: str = '', columns: int = 2, startrow: int = 0, padx=0, pady=0, *args, **kwargs):
@@ -479,11 +512,11 @@ class TKConfigure:
 						onChange=self._onChange, width=self.getPar(group, id, 'width'), *args, **kwargs)
 			except Exception as e:
 				print(type(e), e)
-				raise RuntimeError(f"Error while creating widget for parameter {id}")
+				raise RuntimeError(f"Error while creating widget of type {widgetType} for parameter {id}")
 			
 			# Set parameter specific widget attributes
 			widgetattr = self.getPar(group, id, 'widgetattr')
-			if len(widgetattr) > 0:
+			if len(widgetattr) > 0 and widgetType != 'TKCDialog':
 				self.widget[id].config(**widgetattr)
 
 			grow = self.getPar(group, id, 'row')
@@ -497,6 +530,13 @@ class TKConfigure:
 				if widgetType == 'TKCCheckbox':
 					self.widget[id].config(text=lblText)
 					self.widget[id].grid(columnspan=2, column=gcol, row=row, sticky='nw', padx=padx, pady=pady)
+				elif widgetType == 'TKCDialog' or widgetType == 'TKCColortable':
+					btnId = 'btn_' + id
+					idSettings = self.get(id)
+					self.widget[btnId] = tk.Button(master, text=lblText,
+								command=lambda i=id, m=master, t=lblText, s=idSettings: self.onParEditButton(i, m, t, s))
+					self.widget[btnId].grid(column=gcol, row=row, sticky='w', padx=padx, pady=pady)
+					self.widget[id].grid(column=gcol+1, row=row, sticky='w', padx=padx, pady=pady)
 				else:
 					# Two widgets: label and input widget
 					lblId = 'lbl_' + id

@@ -5,7 +5,7 @@ import re
 from tkinter.colorchooser import askcolor
 from typing import Literal
 
-import coloreditor as ce
+# import coloreditor as ce
 
 
 ###############################################################################
@@ -24,10 +24,13 @@ class _TKCWidget:
 		'TKCFlags',           # Multiple checkboxes representing single bits
 		'TKCSlider',          # Horizontal slider
 		'TKCColor',           # Rectangle with color => click opens color chooser
-		'TKCColortable'       # Rectangle with color table => click opens color editor
+		'TKCColortable',      # Rectangle with color table => click opens color editor,
+		'TKCDialog'           # A top level dialog window to enter values of a TKConfigure object
 	]
 
-	def __init__(self, parent, id: str, inputtype: Literal['int','float','str','bits','complex','list'] = 'str',
+	_INPUTTYPES = ['int', 'float', 'str', 'bits', 'complex', 'list', 'tkc']
+
+	def __init__(self, parent, id: str, inputtype: Literal['int','float','str','bits','complex','list','tkc'] = 'str',
 			  valrange = None, initvalue = None, onChange = None, readonly: bool = False):
 		self.parent    = parent
 		self.id        = id
@@ -50,8 +53,8 @@ class _TKCWidget:
 	def _checkParameters(inputtype: str, valrange: list | tuple | None, vrMandatory: bool = False):
 		if inputtype is None:
 			raise ValueError('inputtype == None')
-		if inputtype not in ['int', 'float', 'str', 'bits', 'complex', 'list']:
-			raise ValueError(f"Invalid inputtype {inputtype}")
+		if inputtype not in _TKCWidget._INPUTTYPES:
+			raise ValueError(f"Invalid inputtype {inputtype}. Supported inputtypes: {_TKCWidget._INPUTTYPES}")
 
 		if valrange is None and vrMandatory:
 			raise ValueError('Missing mandatory valrange')
@@ -213,7 +216,7 @@ class TKCSpinbox(_TKCWidget, tk.Spinbox):
 				*args, **kwargs):
 		# Check parameters
 		if inputtype not in ['int','float','str']:
-			raise ValueError(f"{id}: Invalid inputtype {inputtype}")
+			raise ValueError(f"{id}: Invalid inputtype {inputtype}. Only 'int', 'float', 'str' supported by TKCSpinbox")
 		_TKCWidget._checkParameters(inputtype, valrange, vrMandatory=True)
 
 		# Spinbox value is stored in a text variable and casted to input type by function _getWidgetValue()
@@ -282,7 +285,7 @@ class TKCEntry(_TKCWidget, tk.Entry):
 				*args, **kwargs):
 		# Check parameters
 		if inputtype not in ['int','float','str','complex']:
-			raise ValueError(f"{id}: Invalid inputtype {inputtype}")
+			raise ValueError(f"{id}: Invalid inputtype {inputtype}. Only 'int', 'float', 'str', 'complex' supported by TKCEntry")
 		_TKCWidget._checkParameters(inputtype, valrange)
 
 		self.enVar = tk.StringVar()
@@ -345,7 +348,7 @@ class TKCListbox(_TKCWidget, ttk.Combobox):
 				*args, **kwargs):
 		# Check parameters
 		if inputtype not in ['int','float','str']:
-			raise ValueError(f"{id}: Invalid inputtype {inputtype}")
+			raise ValueError(f"{id}: Invalid inputtype {inputtype}. Only 'int', 'float', 'str' supported by TKCListbox")
 		_TKCWidget._checkParameters(inputtype, valrange, vrMandatory=True)
 
 		self.lbVar = tk.StringVar()
@@ -509,7 +512,7 @@ class TKCSlider(_TKCWidget, tk.Scale):
 				*args, **kwargs):
 		# Check parameters
 		if inputtype not in ['int','float']:
-			raise ValueError(f"{id}: Invalid inputtype {inputtype}")
+			raise ValueError(f"{id}: Invalid inputtype {inputtype}. Only 'int', 'float' supported by TKCSlider")
 		_TKCWidget._checkParameters(inputtype, valrange, vrMandatory=True)
 
 		# Slider value is stored in a text variable and casted to input type by function _getWidgetValue()
@@ -597,18 +600,20 @@ class TKCColortable(_TKCWidget, tk.Canvas):
 		self.width  = width
 		self.height = 15
 		self.cVar   = initvalue
-		self.cEdit  = ce.ColorEditor(parent, width=400, height=600)
+		# self.cEdit  = ce.ColorEditor(parent, width=400, height=600)
 
 		tk.Canvas.__init__(self, parent, width=width, height=15)
 		_TKCWidget.__init__(self, parent, id, inputtype=inputtype, initvalue=initvalue, onChange=onChange, readonly=readonly)
 
-		if not self.readonly:
-			self.bind("<Button-1>", self._showEditor)
+		# if not self.readonly:
+		#	self.bind("<Button-1>", self._showEditor)
 
+	"""
 	def _showEditor(self, event = None):
 		if self.cEdit.show(palettename=self.cVar[2], palettedef=self.cVar[0]):
 			self._setWidgetValue(self.cEdit.masterSettings['colorTable'])
 			self._update()
+	"""
 
 	def _setWidgetValue(self, value):
 		self.cVar = value
@@ -644,3 +649,32 @@ class TKCColortable(_TKCWidget, tk.Canvas):
 		return self.cVar
 
 
+class TKCDialog(_TKCWidget, tk.Entry):
+	def __init__(self, parent, id: str, inputtype: Literal['tkc'] = 'tkc',
+				initvalue = None, onChange = None, readonly: bool = True, width = 30,
+				*args, **kwargs):
+		# Check parameters
+		if inputtype != 'tkc':
+			raise ValueError(f"{id}: Invalid inputtype {inputtype}. Only 'tkc' supported by TKCDialog")
+
+		self.parent = parent
+		self.dVar   = initvalue
+		self.sVar   = tk.StringVar()
+
+		tk.Entry.__init__(self, parent, width=width, *args, **kwargs)
+		_TKCWidget.__init__(self, parent, id, inputtype=inputtype, initvalue=initvalue, onChange=onChange, readonly=readonly)
+
+		state = 'readonly' if readonly else 'normal'
+		self.config(
+			textvariable=self.sVar,
+			justify='left',
+			state=state
+		)
+
+	def _setWidgetValue(self, value):
+		self.dVar = value
+		valueList = value.getValues()
+		self.sVar.set(str(valueList))
+
+	def _getWidgetValue(self):
+		return self.dVar
