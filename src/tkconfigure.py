@@ -59,7 +59,8 @@ import coloreditor as ce
 #   column -     Column of widget. Grid column is calculated by multiplying
 #                this value with the columns parameter, which is 2 if the 
 #                label and the widget are placed side-by-side.
-#   readonly   - If set to True, widget value cannot be changed  
+#   readonly   - If set to True, widget value cannot be changed
+#   tooltip    - Text which is displayed when moving mouse over widget
 #
 # Parameter value dictionary:
 #
@@ -78,26 +79,30 @@ class TKConfigure:
 	def __init__(self, parameterdefinition: dict | None = None, config: dict | None = None):
 
 		# Input types:
-		self.types = { 'int': int, 'float': float, 'str': str, 'bits': int, 'complex': complex, 'list': list, 'tkc': TKConfigure }
+		self.types = {
+			'int': int, 'float': float, 'str': str, 'bits': int, 'complex': complex, 'list': list, 'tkc': TKConfigure
+		}
 
 		# Allowed parameter definition keys
 		self.attributes = [
-			'inputtype', 'valrange', 'initvalue', 'widget', 'label', 'width', 'widgetattr', 'notify', 'row', 'column', 'readonly'
+			'inputtype', 'valrange', 'initvalue', 'widget', 'label', 'width', 'widgetattr',
+			'notify', 'row', 'column', 'readonly', 'tooltip'
 		]
 
 		# Default values for parameter attributes
 		self.defaults = {
-			'inputtype':  'str',
-			'valrange':   None,
-			'initvalue':  '',
-			'widget':     'TKCEntry',
-			'label':      '',
-			'width':      20,
-			'widgetattr': {},
-			'notify':     None,
-			'row':        -1,
-			'column':     -1,
-			'readonly':   False
+			'inputtype':   'str',
+			'valrange':    None,
+			'initvalue':   '',
+			'widget':      'TKCEntry',
+			'label':       '',
+			'width':       20,
+			'widgetattr':  {},
+			'notify':      None,
+			'row':         -1,
+			'column':      -1,
+			'readonly':    False,
+			'tooltip':     ''
 		}
 
 		# Maximum width of widgets
@@ -115,6 +120,9 @@ class TKConfigure:
 
 		# Created widgets: ['<id>'] -> <widget>
 		self.widget = {}
+
+		# Created tooltips: ['<id>'] -> <tooltip>
+		self.tooltip = {}
 
 		# Callback functions, can be set with notify()
 		self.notifyChange = None
@@ -492,12 +500,15 @@ class TKConfigure:
 			if width == 0: width  = max(settings.maxWidth * 3 + 2 * padx, 150)
 			if height == 0: height = max(len(settings.idList.keys()) * (55 + pady), 200)
 			if settings.showDialog(master, title=title, width=width, height=height, padx=padx, pady=pady):
+				# No need to call _onChange(), because config is directly updated by widget
 				self.syncWidget(id)
 
 		elif parCfg['widget'] == 'TKCColortable':
 			cEdit = ce.ColorEditor(master, width=max(width, 400), height=max(height, 600))
 			if cEdit.show(title=title, colorTable=settings):
-				self.set(id, cEdit.masterSettings['colorTable'], sync=True)
+				self._onChange(id, cEdit.masterSettings['colorTable'])
+				self.syncWidget(id)
+				# self.set(id, cEdit.masterSettings['colorTable'], sync=True)
 
 	# Create widgets for specified parameter group, return number of next free row
 	def createWidgets(self, master, group: str = '', columns: int = 2, startrow: int = 0, padx=0, pady=0, *args, **kwargs):
@@ -530,10 +541,13 @@ class TKConfigure:
 
 			lblText = self.getPar(group, id, 'label')
 			if lblText != '':
+				tipText = self.getPar(group, id, 'tooltip')
+
 				# Checkbox: label = text of checkbox
 				if widgetType == 'TKCCheckbox':
 					self.widget[id].config(text=lblText)
 					self.widget[id].grid(columnspan=2, column=gcol, row=row, sticky='nw', padx=padx, pady=pady)
+					if tipText != '': self.tooltip[id] = Tooltip(self.widget[id], tipText)
 
 				# Dialog windows: label = text of button
 				elif widgetType == 'TKCDialog' or widgetType == 'TKCColortable':
@@ -543,11 +557,13 @@ class TKConfigure:
 								command=lambda i=id, m=master, t=lblText, s=idSettings: self.onParEditButton(i, m, t, s))
 					self.widget[btnId].grid(column=gcol, row=row, sticky='w', padx=padx, pady=pady)
 					self.widget[id].grid(column=gcol+1, row=row, sticky='w', padx=padx, pady=pady)
+					if tipText != '': self.tooltip[btnId] = Tooltip(self.widget[btnId], tipText)
 
 				else:
 					# Two widgets: label and input widget
 					lblId = 'lbl_' + id
 					self.widget[lblId] = tk.Label(master, text=lblText, justify='left', anchor='w')
+					if tipText != '': self.tooltip[lblId] = Tooltip(self.widget[lblId], tipText)
 
 					if columns == 1:
 						# Two rows, label in first row, input widget in second

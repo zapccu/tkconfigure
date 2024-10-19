@@ -5,11 +5,84 @@ import re
 from tkinter.colorchooser import askcolor
 from typing import Literal
 
-# import coloreditor as ce
+
+class Tooltip(object):
+
+	def __init__(self, widget, text: str,
+			showtimeout: int = 500,	# Time in milliseconds before showing the tooltip
+			hidetimeout: int = 0,	# Time in milliseconds before hiding the tooltip, default = 0 = show endlessly
+			wrap: int = 180,		# Textwrapping in pixels
+			fg: str = '#000000',	# Text color, default = Black
+			bg: str = '#ffff00'		# Background color, default = Yellow
+		):
+
+		self.widget      = widget
+		self.text        = text
+		self.showtimeout = showtimeout
+		self.hidetimeout = hidetimeout
+		self.wrap        = wrap
+		self.fg          = fg
+		self.bg          = bg
+
+		self.widget.bind("<Enter>", self.enter)
+		self.widget.bind("<Leave>", self.leave)
+		self.widget.bind("<ButtonPress>", self.leave)
+
+		self.timerShow = None
+		self.timerHide = None
+		self.win       = None
+
+	def enter(self, event=None):
+		self.unschedule()
+		self.timerShow = self.widget.after(self.showtimeout, self.show)
+
+	def leave(self, event=None):
+		self.unschedule()
+		self.hide()
+
+	def unschedule(self):
+		timerShow = self.timerShow
+		self.timerShow = None
+		if timerShow:
+			self.widget.after_cancel(timerShow)
+
+	def show(self, event=None):
+		x = y = 0
+		x, y, cx, cy = self.widget.bbox("insert")
+		x += self.widget.winfo_rootx() + 25
+		y += self.widget.winfo_rooty() + 20
+
+		# creates a toplevel window
+		self.win = tk.Toplevel(self.widget)
+		
+		# Leaves only the label and removes the app window
+		self.win.wm_overrideredirect(True)
+		self.win.wm_geometry("+%d+%d" % (x, y))
+		label = tk.Label(self.win, text=self.text, justify='left',
+					bg=self.bg, fg=self.fg, relief='solid', borderwidth=0,
+					wraplength = self.wrap, padx=5, pady=5)
+		label.pack()
+		if self.hidetimeout > 0:
+			self.timerHide = self.widget.after(self.hidetimeout, self.hide)
+
+	def hide(self):
+		win = self.win
+		self.win = None
+		if win:
+			win.destroy()
 
 
 ###############################################################################
 # Base class for all TKC widgets
+#
+# Configuration update mechanism:
+#
+# - When widget value has changed, call _TKCWidget._update()
+# - If onChange callback function is defined for widget, _update is calling
+#   onChange. Usually onChange = TKConfigure._onChange
+# - TKConfigure._onChange is storing the new value in the current configuration
+#   If customer app defined a notification callback, this function is called
+#   with old and new value as parameter.
 ###############################################################################
 
 class _TKCWidget:
@@ -671,6 +744,7 @@ class TKCDialog(_TKCWidget, tk.Entry):
 			state=state
 		)
 
+	# Set new TKConfigure object as value
 	def _setWidgetValue(self, value):
 		self.dVar = value
 		valueList = value.getValues()
