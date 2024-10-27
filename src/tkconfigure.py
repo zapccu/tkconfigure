@@ -7,6 +7,18 @@ from typing import Literal
 
 import coloreditor as ce
 
+
+# Class for JSON encode special values
+class CustomEncoder(json.JSONEncoder):
+	def default(self, obj):
+		if isinstance(obj, complex):
+			return { '__complex__': True, 'real': obj.real, 'imag': obj.imag }
+		elif isinstance(obj, TKConfigure):
+			return obj.getConfig(simple=True)
+		return super().default(obj)
+
+
+
 ###############################################################################
 #
 # Create configuration objects
@@ -26,12 +38,17 @@ import coloreditor as ce
 #    "group-name": {
 #       "parameter-name": {
 #          "attribute-name": attribute-value,
-#          ... # Further attributes
+#          ... Further attributes
 #       },
-#       ... # Further parameter definitions
+#       ... Further parameter definitions
 #    },
-#    ... # Further groups, use "" for no-group
+#    ... Further groups
 # }
+#
+# Special group names:
+#
+# "" or "_" or "_group-name" - Draw a invisible group frame with border=0
+# "#" or "#group-name"       - Do not create a group frame
 #
 # Parameter attributes:
 #
@@ -46,8 +63,9 @@ import coloreditor as ce
 #                  'bits': list of string representing the bits (index 0 = bit 0)
 #   widget -     The type of the input widget, either 'TKCEntry', 'TKCSpinbox',
 #                'TKCCheckbox', 'TKCListbox', 'TKCRadiobuttons', 'TKCFlags',
-#                'TKCSlider', 'TKCColor', 'TKCColortable', 'TKCDialog'
-#                Default = 'TKCEntry'
+#                'TKCSlider', 'TKCColor', 'TKCColortable', 'TKCDialog',
+#                'TKCMask' (placeholder for submask)
+#                Default = None = Do not create a widget
 #   label -      Text placed in front of the widget, default = '' (no text)
 #   width -      Width of the input widget in characters, default = 20
 #   widgetattr - Dictionary with additional TKInter widget attributes,
@@ -66,10 +84,10 @@ import coloreditor as ce
 #
 # {
 #    "parameter-name": {
-#       "value": parameter-value,
+#       "value":    parameter-value,
 #       "oldValue": previous-parameter-value
 #    },
-#    ... # Further parameter values
+#    ... Further parameter values
 # }
 #
 ###############################################################################
@@ -94,7 +112,7 @@ class TKConfigure:
 			'inputtype':   'str',
 			'valrange':    None,
 			'initvalue':   '',
-			'widget':      'TKCEntry',
+			'widget':      None,
 			'label':       '',
 			'width':       20,
 			'widgetattr':  {},
@@ -132,6 +150,22 @@ class TKConfigure:
 	def _getDictValues(dictionary: dict, attributes: list, defaults: dict = {}) -> list:
 		return [dictionary[a] if a in dictionary else (defaults[a] if a in defaults else None) for a in attributes ]
 
+	# Encode JSON
+	@staticmethod
+	def _encodeJSON(obj):
+		if isinstance(obj, complex):
+			return {'__complex__': True, 'real': obj.real, 'imag': obj.imag}
+		elif isinstance(obj, TKConfigure):
+			return obj.getConfig(simple=True)
+		raise TypeError(f'Cannot serialize object of type {type(obj)}')
+	
+	# Decode JSON 
+	@staticmethod
+	def _decodeJSON(dct: dict):
+		if '__complex__' in dict:
+			return complex(dct['real'], dct['imag'])
+		return dct
+
 	# Dump current parameter values
 	def dumpConfig(self):
 		for id in self.config:
@@ -146,6 +180,10 @@ class TKConfigure:
 	def notify(self, onchange=None, onerror=None):
 		self.notifyChange = onchange
 		self.notifyError  = onerror
+
+	###########################################################################
+	# Validation functions
+	###########################################################################
 
 	# Validate group and/or id
 	def _validateGroupId(self, group: str | None = None, id: str | None = None):
@@ -352,12 +390,23 @@ class TKConfigure:
 		self.setConfig(json.loads(jsonData))
 
 	# Get current config values as dictionary
-	def getConfig(self) -> dict:
-		return self.config
+	def getConfig(self, simple: bool = False) -> dict:
+		if simple:
+			simpleConfig = {}
+			for id in self.config.keys():
+				simpleConfig[id] = self.config[id]['value']
+			return simpleConfig
+		else:
+			return self.config
+	
+	# Convert dictionary to JSON string considering special values
+	@staticmethod
+	def toJSON(dct: dict, indent: int = 4) -> str:
+		return json.dumps(dct, indent=indent, default=TKConfigure._encodeJSON)
 	
 	# Get current config values from dictionary as JSON
 	def getJSON(self, indent: int = 4) -> str:
-		return json.dumps(self.config, indent=indent)
+		return json.dumps(self.getConfig(simple=True), indent=indent, default=TKConfigure._encodeJSON)
 
 	# Get parameter value
 	def get(self, id: str, returndefault: bool = True, sync: bool = False):
@@ -511,17 +560,31 @@ class TKConfigure:
 				# self.set(id, cEdit.masterSettings['colorTable'], sync=True)
 
 	# Create widgets for specified parameter group, return number of next free row
-	def createWidgets(self, master, group: str = '', columns: int = 2, startrow: int = 0, padx=0, pady=0, *args, **kwargs):
+	def createWidgets(self, master, group: str = '', columns: int = 2, startrow: int = 0, padx=0, pady=0, submasks: bool = True, *args, **kwargs):
 		self._validateGroupId(group=group)
 		row = startrow
 
 		for id in self.parDef[group]:
-			# Create the input widget
+			inputType = self.getPar(group, id, 'inputtype')
 			widgetType = self.getPar(group, id, 'widget')
+
+			# Ignore parameters without widget type
+			if widgetType is None:
+				continue
+			elif widgetType == 'TKCMask':
+				if submasks:
+					# Create a submask
+					subSetting = self.get(id)
+					row = subSetting.createMask(master, startrow=row, **self.getPar(group, id, 'widgetattr'))
+					continue
+				else:
+					break
+
+			# Create the input widget
 			widgetClass = globals()[widgetType]
 			# justify = 'left' if self.getPar(group, id, 'inputtype') == 'str' else 'right'
 			try:
-				self.widget[id] = widgetClass(master, id=id, inputtype=self.getPar(group, id, 'inputtype'),
+				self.widget[id] = widgetClass(master, id=id, inputtype=inputType,
 						valrange=self.getPar(group, id, 'valrange'), initvalue=self.get(id), readonly=self.getPar(group, id, 'readonly'),
 						onChange=self._onChange, width=self.getPar(group, id, 'width'), *args, **kwargs)
 			except Exception as e:
@@ -586,30 +649,36 @@ class TKConfigure:
 	# Before the widgets are created, the current parameter values are saved as old values (for specified groups only).
 	# So every change can be reverted by calling undo()
 	def createMask(self, master, columns: int = 2, startrow: int = 0, padx: int = 0, pady: int = 0, groups: list = [],
-					groupwidth: int = 0, colwidth: tuple = (50.0, 50.0), *args, **kwargs) -> int:
+					groupwidth: int = 0, colwidth: tuple = (50.0, 50.0), submasks: bool = True, *args, **kwargs) -> int:
 		row = startrow
 		grpList = list(self.parDef.keys()) if len(groups) == 0 else groups
 
 		for g in grpList:
-			# Do not show a border for widgets without group name
-			border = 0 if g == '' else 2
+			# Do not create a group frame when group name starts with '#'
+			if len(g) == 0 or g[0] != '#':
+				# Do not show a border around group for empty group names or group names starting with '_'
+				border = 0 if g == '' or (len(g) > 0 and g[0] == '_')  else 2
 
-			# Create group frame
-			self.widget[g] = tk.LabelFrame(master, text=g, borderwidth=border)
-			self.widget[g].grid(columnspan=2, row=row, column=0, padx=padx, pady=pady, sticky='we')
+				# Create group frame
+				self.widget[g] = tk.LabelFrame(master, text=g, borderwidth=border)
+				self.widget[g].grid(columnspan=2, row=row, column=0, padx=padx, pady=pady, sticky='we')
 
-			# Configure width of columns
-			if columns == 1:
-				self.widget[g].columnconfigure(0, minsize=groupwidth)
+				# Configure width of columns
+				if columns == 1:
+					self.widget[g].columnconfigure(0, minsize=groupwidth)
+				else:
+					self.widget[g].columnconfigure(0, minsize=int(groupwidth * colwidth[0] / 100.0))
+					self.widget[g].columnconfigure(1, minsize=int(groupwidth * colwidth[1] / 100.0))
+
+				# Count only the label frame
+				row += 1
+
+				# Create widgets as childs of label frame. Row number is relative to label frame, starts from 0
+				self.createWidgets(self.widget[g], group=g, columns=columns, startrow=0, padx=padx, pady=pady, submasks=submasks, *args, **kwargs)
+
 			else:
-				self.widget[g].columnconfigure(0, minsize=int(groupwidth * colwidth[0] / 100.0))
-				self.widget[g].columnconfigure(1, minsize=int(groupwidth * colwidth[1] / 100.0))
-
-			# Count the label frame
-			row += 1
-
-			# Create widgets as childs of label frame. Row number is relative to label frame, starts from 0
-			self.createWidgets(self.widget[g], group=g, columns=columns, startrow=0, padx=padx, pady=pady, *args, **kwargs)
+				# Count rows of all created widgets
+				row = self.createWidgets(master, group=g, columns=columns, startrow=0, padx=padx, pady=pady, submasks=submasks, *args, **kwargs)
 
 		return row
 	

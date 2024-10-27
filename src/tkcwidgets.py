@@ -98,7 +98,8 @@ class _TKCWidget:
 		'TKCSlider',          # Horizontal slider
 		'TKCColor',           # Rectangle with color => click opens color chooser
 		'TKCColortable',      # Rectangle with color table => click opens color editor,
-		'TKCDialog'           # A top level dialog window to enter values of a TKConfigure object
+		'TKCDialog',          # A top level dialog window to enter values of a TKConfigure object
+		'TKCMask'             # Submask with widgets, used for inputtype 'tkc'
 	]
 
 	_INPUTTYPES = ['int', 'float', 'str', 'bits', 'complex', 'list', 'tkc']
