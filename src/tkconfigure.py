@@ -146,26 +146,16 @@ class TKConfigure:
 		self.notifyChange = None
 		self.notifyError  = None
 
+
+	###########################################################################
+	# Helper functions
+	###########################################################################
+
+	# Extract values as list from dictionary
 	@staticmethod
 	def _getDictValues(dictionary: dict, attributes: list, defaults: dict = {}) -> list:
 		return [dictionary[a] if a in dictionary else (defaults[a] if a in defaults else None) for a in attributes ]
-
-	# Encode JSON
-	@staticmethod
-	def _encodeJSON(obj):
-		if isinstance(obj, complex):
-			return {'__complex__': True, 'real': obj.real, 'imag': obj.imag}
-		elif isinstance(obj, TKConfigure):
-			return obj.getConfig(simple=True)
-		raise TypeError(f'Cannot serialize object of type {type(obj)}')
 	
-	# Decode JSON 
-	@staticmethod
-	def _decodeJSON(dct: dict):
-		if '__complex__' in dict:
-			return complex(dct['real'], dct['imag'])
-		return dct
-
 	# Dump current parameter values
 	def dumpConfig(self):
 		for id in self.config:
@@ -180,6 +170,81 @@ class TKConfigure:
 	def notify(self, onchange=None, onerror=None):
 		self.notifyChange = onchange
 		self.notifyError  = onerror
+
+	
+	###########################################################################
+	# JSON encoding and decoding functions for configuration values
+	#
+	# The internal dictionary of configuration values is converted to a
+	# simplified JSON structure:
+	#
+	# Internal dictionary:
+	#
+	# {
+	#    "id1": {
+	#       "oldValue": Value
+	#       "value": Value
+	#    },
+	#    "id2": {
+	#       ...
+	#    }
+	# }
+	#
+	# Simplified JSON:
+	#
+	# {
+	#    "id1": Value,
+	#    "id2": Value,
+	#    ...
+	# }
+	#
+	# If a value is of type TKConfigure, it's stored as a child JSON structure:
+	#
+	# {
+	#    "id1": {
+	#       "id11": Value,
+	#       "id12": Value,
+	#       ...
+	#    },
+	#    "id2": Value,
+	#    ...
+	# }
+	###########################################################################
+
+	# Encode JSON.
+	# Callback function for encoding special datatypes 'complex' and 'TKConfigure'
+	@staticmethod
+	def _encodeJSON(obj):
+		if isinstance(obj, complex):
+			# Complex values are split into dict with 'real' and 'imag' keys
+			return { 'real': obj.real, 'imag': obj.imag }
+		elif isinstance(obj, TKConfigure):
+			# TKConfigure values are resolved to simple dict
+			return obj.getConfig(simple=True)
+		raise TypeError(f'Cannot serialize object of type {type(obj)}')
+	
+	# Decode JSON.
+	# Callback function for decoding special datatype 'complex'
+	@staticmethod
+	def _decodeJSON(dct: dict):
+		if len(dct.keys()) == 2 and 'real' in dct and 'imag' in dct:
+			# Convert { 'real': r, 'imag': i } to complex(r, i)
+			return complex(dct['real'], dct['imag'])
+		return dct
+
+	# Convert dictionary to JSON string considering special datatypes 'complex' and 'TKConfigure'
+	@staticmethod
+	def toJSON(dct: dict, indent: int = 4) -> str:
+		return json.dumps(dct, indent=indent, default=TKConfigure._encodeJSON)
+	
+	# Get current config values from internal dict as simple JSON
+	def getJSON(self, indent: int = 4) -> str:
+		return json.dumps(self.getConfig(simple=True), indent=indent, default=TKConfigure._encodeJSON)
+	
+	# Set current config values from JSON string
+	def setJSON(self, jsonData: str):
+		self.setConfig(json.loads(jsonData, object_hook=TKConfigure._decodeJSON), simple=True)
+
 
 	###########################################################################
 	# Validation functions
@@ -245,11 +310,12 @@ class TKConfigure:
 
 	# Validate parameter value
 	def _validateValue(self, id: str, value, bCast: bool = False):
-		self._validateGroupId(id=id)
-		parCfg = self.getPar(self.idList[id], id)
+		parCfg = self.getIdDefinition(id)
 
 		# Type of value must match inputtype
-		if type(value) is not self.types[parCfg['inputtype']]:
+		if type(value) is dict and parCfg['inputtype'] != 'tkc':
+			raise TypeError(f"Value of type dict requires inputtype tkc")	
+		if type(value) is not dict and type(value) is not self.types[parCfg['inputtype']]:
 			raise TypeError(f"Type of value {value} doesn't match input type {parCfg['inputtype']} of parameter {id}")
 		
 		if bCast:
@@ -281,37 +347,33 @@ class TKConfigure:
 		return value
 	
 	# Validate configuration / parameter values
-	def _validateConfig(self, config: dict):
+	def _validateConfig(self, config: dict, simple: bool = False):
 		for id in config:
 			self._validateGroupId(id=id)
-			if 'value' not in config[id]:
-				raise ValueError(f"Missing value for parameter {id}")
-			for a in config[id]:
-				if a not in ['value', 'oldValue']:
-					raise KeyError(f"Attribute {a} not allowed for parameter {id}")
-			self._validateValue(id, config[id]['value'])
+			if simple:
+				print(f"Validating {id}")
+				self._validateValue(id, config[id])
+			else:
+				if 'value' not in config[id]:
+					raise ValueError(f"Missing value for parameter {id}")
+				for a in config[id]:
+					if a not in ['value', 'oldValue']:
+						raise KeyError(f"Attribute {a} not allowed for parameter {id}")
+				self._validateValue(id, config[id]['value'])
 
-	# Set parameter value to default
-	def setDefaultValue(self, group: str, id: str):
-		self._validateGroupId(group=group, id=id)
 
-		initvalue = self.getPar(group, id, 'initvalue')
+	###########################################################################
+	# Parameter configuration functions
+	###########################################################################
 
-		# Validate inputtype and initvalue, cast type for int or float
-		nInitValue = self._validateValue(id, initvalue, bCast=True)
-		self.set(id, nInitValue)
-	
-	# Set all parameters of current config to default values
-	def resetConfigValues(self):
-		self.config = {}
-		for group in self.parDef:
-			for id in self.parDef[group]:
-				self.setDefaultValue(group, id)
-
-	# Set new parameter definition and set config values to default values
+	# Set new parameter definition and set config values.
+	# If config is None, set default values
 	def setParameterDefinition(self, parameterDefinition: dict, config: dict | None = None):
+		# Reset parameter configuration
 		self.idList = {}
 		self.parDef = {}
+
+		# Set new parameter definition
 		self.updateParameterDefinition(parameterDefinition, config)
 
 	# Update/enhance parameter defintion
@@ -319,8 +381,12 @@ class TKConfigure:
 		# Complete parameter definition. Add defaults for missing attributes
 		for group in parameterDefinition:
 			for id in parameterDefinition[group]:
-				if id in self.idList: raise KeyError(f"Duplicate parameter id {id}")
-				self.idList[id] = group
+				if id in self.idList:
+					raise KeyError(f"Duplicate parameter id {id}")
+				else:
+					self.idList[id] = group
+
+				# Complete missing attributes with defaults
 				for a in self.defaults:
 					if a not in parameterDefinition[group][id]:
 						parameterDefinition[group][id][a] = self.defaults[a]
@@ -333,7 +399,8 @@ class TKConfigure:
 
 		# Update parameter values
 		if config is None:
-			self.resetConfigValues()
+			# Set values of added parameters to default
+			self.resetConfigValues(parameterDefinition)
 		else:
 			# Validate parameter values (will raise excpetions on error)
 			self._validateConfig(config)
@@ -379,63 +446,6 @@ class TKConfigure:
 		self.parDef[group][id][attribute] = attrvalue
 		self._validateParDef(id, self.parDef[group][id])
 
-	# Set current config values from dictionary
-	def setConfig(self, config: dict):
-		self._validateConfig(config)
-		self.config = {}
-		self.config.update(config)
-
-	# Set current config values from JSON data
-	def setJSON(self, jsonData: str):
-		self.setConfig(json.loads(jsonData))
-
-	# Get current config values as dictionary
-	def getConfig(self, simple: bool = False) -> dict:
-		if simple:
-			simpleConfig = {}
-			for id in self.config.keys():
-				simpleConfig[id] = self.config[id]['value']
-			return simpleConfig
-		else:
-			return self.config
-	
-	# Convert dictionary to JSON string considering special values
-	@staticmethod
-	def toJSON(dct: dict, indent: int = 4) -> str:
-		return json.dumps(dct, indent=indent, default=TKConfigure._encodeJSON)
-	
-	# Get current config values from dictionary as JSON
-	def getJSON(self, indent: int = 4) -> str:
-		return json.dumps(self.getConfig(simple=True), indent=indent, default=TKConfigure._encodeJSON)
-
-	# Get parameter value
-	def get(self, id: str, returndefault: bool = True, sync: bool = False):
-		self._validateGroupId(id=id)
-		if id in self.config and 'value' in self.config[id]:
-			if sync and id in self.widget: self.widget[id]._update()
-			return self.config[id]['value']
-		elif returndefault:
-			return self.getPar(self.idList[id], id, 'initvalue')
-		else:
-			raise ValueError(f"No value assigned to parameter {id}")
-		
-	# Get multiple parameter values. If idList is None, all values will be returned
-	def getValues(self, idList: list[str] | None = None, returndefault: bool = True, sync: bool = False) -> list:
-		if idList is None:
-			ids = self.getIds()
-		else:
-			if type(idList) is not list:
-				raise("Parameter idList must be of type list")
-			ids = idList
-		values = [self.get(id, returndefault=returndefault, sync=sync) for id in ids]
-		return values
-	
-	# Get all values of a group as dict
-	def getGroupValues(self, group: str) -> dict:
-		groupDef = self.getGroupDefinition(group)
-		valueDict = { an: self.get(an) for an in groupDef }
-		return valueDict
-
 	# Get parameter id list. Either all ids or ids of specified group
 	def getIds(self, group: str | None = None) -> list:
 		if group is None:
@@ -444,24 +454,77 @@ class TKConfigure:
 			groupDef = self.getGroupDefinition(group)
 			return list(groupDef.keys())
 		
-	# Get parameter widget object
-	def getWidget(self, id: str):
-		if id in self.widget:
-			return self.widget[id]
-		else:
-			return None
-	
-	# Enable/disable widget
-	def setWidgetState(self, id: str, state: str):
-		widget = self.getWidget(id)
-		if widget is not None:
-			widget.config(state=state)
 
-	# Get config value ['<id>'], shortcut for get(id) with returndefault=True and sync=False
-	def __getitem__(self, id: str):
-		return self.get(id)
+	###########################################################################
+	# Functions for setting configuration values
+	###########################################################################
+
+	# Set parameter value to default
+	def setDefaultValue(self, group: str, id: str):
+		self._validateGroupId(group=group, id=id)
+
+		initvalue = self.getPar(group, id, 'initvalue')
+
+		# Validate inputtype and initvalue, cast type for int or float
+		nInitValue = self._validateValue(id, initvalue, bCast=True)
+		self.set(id, nInitValue)
+	
+	# Set all parameters of current config to default values
+	def resetConfigValues(self, parameterDefinition: dict | None = None):
+		if parameterDefinition is None:
+			self.config = {}
+			for group in self.parDef:
+				for id in self.parDef[group]:
+					self.setDefaultValue(group, id)
+		else:
+			for group in parameterDefinition:
+				for id in parameterDefinition[group]:
+					self.setDefaultValue(group, id)
+
+	# Set current config values from dictionary
+	#
+	# Flags:
+	#
+	#   simple:
+	#     True - config contains only id-value-pairs. Child dicts are allowed as value
+	#     False - config contains ids as keys and child dict with 'oldValue' and 'value' keys (default)
+	#   checkmissing:
+	#     True - Raise exception if id is missing
+	#     False - Do not check missing ids (default)
+	#   reset:
+	#     True - Set all config values to default before applying config
+	#     False - Do not reset config values to default (default)
+	#   clear:
+	#     True - Delete config dictionary before applying config
+	#     False - Do not delete config dictionary (default)
+	#
+	def setConfig(self, config: dict, simple: bool = False, checkmissing: bool = False, reset: bool = False, clear: bool = False):
+		self._validateConfig(config, simple=simple)
+
+		if clear: self.config = {}
+		if reset: self.resetConfigValues()
+
+		if simple:
+			for id, value in config.items():
+				parDef = self.getIdDefinition(id)
+				if parDef['inputtype'] == 'tkc':
+					if type(value) is dict:
+						self.config[id].setConfig(value, simple=True)
+					else:
+						raise TypeError(f"JSON value for inputtype 'tkc' must be of type 'dict'")
+				else:
+					self.config.update({ id: { 'oldValue': value, 'value': value }})
+		else:
+			self.config.update(config)
+
+		if checkmissing:
+			# Check for missing ids
+			for id in self.idList:
+				if id not in self.config:
+					raise KeyError(f"Missing id {id} in configuration values")
 
 	# Set config value if new value is different from current value
+	# If sync is True, update widget (if widget linked with parameter)
 	def set(self, id: str, value, sync: bool = False):
 		newValue = self._validateValue(id, value, bCast=True)
 
@@ -477,6 +540,12 @@ class TKConfigure:
 			self.syncWidget(id)
 
 	# Set multiple config values
+	# If sync is True, update widgets (if widget linked with parameter)
+	#
+	# Usage:
+	#
+	#   setValues(id1 = Value1, id2 = Value2, ...)
+	#
 	def setValues(self, sync: bool = False, **kwargs):
 		for id in kwargs:
 			self.set(id, kwargs[id], sync)
@@ -501,6 +570,71 @@ class TKConfigure:
 		elif id in self.config and len(groups) == 0 or self.idList[id] in groups and 'value' in self.config[id]:
 			if sync and id in self.widget: self.widget[id]._update()
 			self.config[id]['oldValue'] = self.config[id]['value']
+
+
+	###########################################################################
+	# Functions for getting configuration values
+	###########################################################################
+
+	# Get current config values as dictionary
+	def getConfig(self, simple: bool = False) -> dict:
+		if simple:
+			simpleConfig = {}
+			for id in self.config.keys():
+				simpleConfig[id] = self.config[id]['value']
+			return simpleConfig
+		else:
+			return self.config
+
+	# Get parameter value
+	def get(self, id: str, returndefault: bool = True, sync: bool = False):
+		self._validateGroupId(id=id)
+		if id in self.config and 'value' in self.config[id]:
+			if sync and id in self.widget: self.widget[id]._update()
+			return self.config[id]['value']
+		elif returndefault:
+			return self.getPar(self.idList[id], id, 'initvalue')
+		else:
+			raise ValueError(f"No value assigned to parameter {id}")
+		
+	# Get multiple parameter values. If idList is None, all values will be returned
+	def getValues(self, idList: list[str] | None = None, returndefault: bool = True, sync: bool = False) -> list:
+		if idList is None:
+			ids = self.getIds()
+		else:
+			if type(idList) is not list:
+				raise("Parameter idList must be of type list")
+			ids = idList
+		values = [self.get(id, returndefault=returndefault, sync=sync) for id in ids]
+		return values
+
+	# Get config value ['<id>'], shortcut for get(id) with returndefault=True and sync=False
+	def __getitem__(self, id: str):
+		return self.get(id)
+
+	# Get all values of a group as dict
+	def getGroupValues(self, group: str) -> dict:
+		groupDef = self.getGroupDefinition(group)
+		valueDict = { an: self.get(an) for an in groupDef }
+		return valueDict
+
+
+	###########################################################################
+	# UI and widgets related functions
+	###########################################################################
+
+	# Get parameter widget object
+	def getWidget(self, id: str):
+		if id in self.widget:
+			return self.widget[id]
+		else:
+			return None
+	
+	# Enable/disable widget
+	def setWidgetState(self, id: str, state: str):
+		widget = self.getWidget(id)
+		if widget is not None:
+			widget.config(state=state)
 
 	# Sync widget value(s) with current config value(s)
 	def syncWidget(self, id: str | None = None):
@@ -540,7 +674,7 @@ class TKConfigure:
 		# Dialog dimensions and padding can defined in parameter "widgetattr"
 		if 'widgetattr' in parCfg:
 			width, height, padx, pady = TKConfigure._getDictValues(
-				parCfg['widgetattr'], ['width', 'height', 'padx', 'pady'], {
+				parCfg['widgetattr'], ['width', 'height', 'padx', 'pady'], defaults = {
 					'width': width, 'height': height, 'padx': padx, 'pady': pady
 				}
 			)
