@@ -3,7 +3,7 @@ from tkinter import *
 from tkinter import colorchooser
 from tkinter.scrolledtext import ScrolledText
 import math
-import tkconfigure as tkc
+from . import tkconfigure as tkc
 
 
 # Default palette definitions, key = palette type

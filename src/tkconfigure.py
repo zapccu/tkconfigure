@@ -1,11 +1,11 @@
 import tkinter as tk
 import json
-from tkcwidgets import *
-from tkcwidgets import _TKCWidget
+from .tkcwidgets import *
+from .tkcwidgets import _TKCWidget
 
 from typing import Literal
 
-import coloreditor as ce
+from . import coloreditor as ce
 
 
 # Class for JSON encode special values
@@ -372,6 +372,7 @@ class TKConfigure:
 		# Reset parameter configuration
 		self.idList = {}
 		self.parDef = {}
+		self.config = {}
 
 		# Set new parameter definition
 		self.updateParameterDefinition(parameterDefinition, config)
@@ -471,8 +472,8 @@ class TKConfigure:
 	
 	# Set all parameters of current config to default values
 	def resetConfigValues(self, parameterDefinition: dict | None = None):
+		self.config = {}
 		if parameterDefinition is None:
-			self.config = {}
 			for group in self.parDef:
 				for id in self.parDef[group]:
 					self.setDefaultValue(group, id)
