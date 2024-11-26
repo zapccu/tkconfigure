@@ -126,15 +126,8 @@ class TKConfigure:
 		# Maximum width of widgets
 		self.maxWidth = 0
 
-		# Parameter ids: ['<id>'] -> <group>
-		self.idList = {}
-		
-		# Parameter definition: ['<group>']['<id>'] -> <definition>
-		if parameterdefinition is None:
-			self.parDef = {}
-			self.config = {}
-		else:
-			self.setParameterDefinition(parameterdefinition, config)
+		# Initialize parameter definition (if specified)
+		self.setParameterDefinition(parameterdefinition, config)
 
 		# Created widgets: ['<id>'] -> <widget>
 		self.widget = {}
@@ -370,12 +363,19 @@ class TKConfigure:
 	# If config is None, set default values
 	def setParameterDefinition(self, parameterDefinition: dict, config: dict | None = None):
 		# Reset parameter configuration
+
+		# Parameter ids: ['<id>'] -> <group>
 		self.idList = {}
+		
+		# Parameter definition: ['<group>']['<id>'] -> <definition>
 		self.parDef = {}
+
+		# Parameter values: ['<id>']['value' | 'oldvalue'] -> <value>
 		self.config = {}
 
 		# Set new parameter definition
-		self.updateParameterDefinition(parameterDefinition, config)
+		if parameterDefinition is not None:
+			self.updateParameterDefinition(parameterDefinition, config)
 
 	# Update/enhance parameter defintion
 	def updateParameterDefinition(self, parameterDefinition: dict, config: dict | None = None):
@@ -472,12 +472,13 @@ class TKConfigure:
 	
 	# Set all parameters of current config to default values
 	def resetConfigValues(self, parameterDefinition: dict | None = None):
-		self.config = {}
 		if parameterDefinition is None:
+			# Reset all existing parameter values
 			for group in self.parDef:
 				for id in self.parDef[group]:
 					self.setDefaultValue(group, id)
 		else:
+			# Reset only parameter values in specified parameter definition
 			for group in parameterDefinition:
 				for id in parameterDefinition[group]:
 					self.setDefaultValue(group, id)
@@ -589,6 +590,7 @@ class TKConfigure:
 
 	# Get parameter value
 	def get(self, id: str, returndefault: bool = True, sync: bool = False):
+		if id not in self.config: print(f"{id} not in self.config")
 		self._validateGroupId(id=id)
 		if id in self.config and 'value' in self.config[id]:
 			if sync and id in self.widget: self.widget[id]._update()
