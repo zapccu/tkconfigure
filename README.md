@@ -3,7 +3,7 @@ TkInter based python app configuration
 
 A configuration is a dictionary with the following syntax:
 
-'''
+```
 {
 	"Widgetgroup-1": {
 		"parameter-1": {
@@ -26,10 +26,11 @@ A configuration is a dictionary with the following syntax:
 		"..."
 	}
 }
-'''
+```
 
 To define a new configuration, simply pass the dictionary with the parameter defintion to the constructor TKConfigure(). Example:
 
+```
 import TKConfigure as tkc
 
 parameterDefiniton = {
@@ -52,19 +53,26 @@ parameterDefiniton = {
 	}
 }
 mySettings = tkc.TKConfigure(parameterDefintion)
+```
 
 To assign a value to settings parameters, 3 methods are available:
 
+```
 mySettings['parameter1'] = 5
 mySettings.set('parameter1', 5)
 mySettings.setValues(parameter1=5, parameter2=7)
+```
 
 Similar functions are available for reading settings parameters:
 
+```
 value = mySettings['parameter1']
 value = mySettings.get('parameter1')
 value1, value2 = mySettings.getValues('parameter1', 'parameter2')
+```
 
 To show an input mask for settings parameters:
 
+```
 mySettings.createMask()
+```
