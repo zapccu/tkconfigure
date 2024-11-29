@@ -5,26 +5,26 @@ A configuration is a dictionary with the following syntax:
 
 ```
 {
-	"Widgetgroup-1": {
-		"parameter-1": {
-			"inputtype": 'int' | 'float' | 'complex' | 'str' | 'bits',
-			"valrange":  tuple | list,
-			"initvalue": value,
-			"widget":    'TKCEntry' | 'TKCSpinner' | 'TKCListbox' | 'TKCFlags' | 'TKCRadiobuttons' | 'TKCSlider',
-			"label":     "Text",
-			"width":     num-value,
-			"widgetattr": {
-				"attr": "value",
-				"..."
-			}
-		},
-		"...": {
-			"..."
-		}
-	},
-	"...": {
-		"..."
-	}
+   "Widgetgroup-1": {
+      "parameter-1": {
+         "inputtype": 'int' | 'float' | 'complex' | 'str' | 'bits',
+         "valrange":  tuple | list,
+         "initvalue": value,
+         "widget":    'TKCEntry' | 'TKCSpinner' | 'TKCListbox' | 'TKCFlags' | 'TKCRadiobuttons' | 'TKCSlider',
+         "label":     "Text",
+         "width":     num-value,
+         "widgetattr": {
+            "attr": "value",
+            "..."
+         }
+      },
+      "...": {
+         "..."
+      }
+   },
+   "...": {
+      "..."
+   }
 }
 ```
 
@@ -34,24 +34,25 @@ To define a new configuration, simply pass the dictionary with the parameter def
 import TKConfigure as tkc
 
 parameterDefiniton = {
-	"": {
-		"parameter1": {
-			"inputtype": 'int',
-			"valrange:   (0, 10),
-			"initvalue": 0,
-			"widget":    'TKCEntry',
-			"label":     "Parameter one",
-			"width":     8 
-		},
-		"parameter1": {
-			"inputtype": 'int',
-			"valrange:   (0, 10, 1),
-			"initvalue": 0,
-			"widget":    'TKCSlider',
-			"label":     "Parameter two"
-		},
-	}
+   "": {
+      "parameter1": {
+         "inputtype": 'int',
+         "valrange:   (0, 10),
+         "initvalue": 0,
+         "widget":    'TKCEntry',
+         "label":     "Parameter one",
+         "width":     8 
+      },
+      "parameter1": {
+         "inputtype": 'int',
+         "valrange:   (0, 10, 1),
+         "initvalue": 0,
+         "widget":    'TKCSlider',
+         "label":     "Parameter two"
+      },
+   }
 }
+
 mySettings = tkc.TKConfigure(parameterDefintion)
 ```
 
