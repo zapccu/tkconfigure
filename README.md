@@ -3,6 +3,7 @@ TkInter based python app configuration
 
 A configuration is a dictionary with the following syntax:
 
+'''
 {
 	"Widgetgroup-1": {
 		"parameter-1": {
@@ -25,6 +26,7 @@ A configuration is a dictionary with the following syntax:
 		"..."
 	}
 }
+'''
 
 To define a new configuration, simply pass the dictionary with the parameter defintion to the constructor TKConfigure(). Example:
 
