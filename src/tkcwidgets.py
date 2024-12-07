@@ -667,7 +667,7 @@ class TKCColor(_TKCWidget, tk.Canvas):
 		
 class TKCColortable(_TKCWidget, tk.Canvas):
 	def __init__(self, parent, id: str, inputtype: Literal['tkc'] = 'tkc',
-				initvalue = [], onChange = None, readonly: bool = False, width = 50,
+				initvalue = None, onChange = None, readonly: bool = False, width = 50,
 				*args, **kwargs):
 		# Check parameters
 		if inputtype != 'tkc':
@@ -677,20 +677,18 @@ class TKCColortable(_TKCWidget, tk.Canvas):
 		self.width  = width
 		self.height = 15
 		self.cVar   = initvalue
-		# self.cEdit  = ce.ColorEditor(parent, width=400, height=600)
+		self.cEdit  = ce.ColorEditor(parent, width=400, height=600)
 
 		tk.Canvas.__init__(self, parent, width=width, height=15)
 		_TKCWidget.__init__(self, parent, id, inputtype=inputtype, initvalue=initvalue, onChange=onChange, readonly=readonly)
 
-		# if not self.readonly:
-		#	self.bind("<Button-1>", self._showEditor)
+		if not self.readonly:
+			self.bind("<Button-1>", self._showEditor)
 
-	"""
 	def _showEditor(self, event = None):
-		if self.cEdit.show(palettename=self.cVar[2], palettedef=self.cVar[0]):
+		if self.cEdit.show(self.cVar):
 			self._setWidgetValue(self.cEdit.masterSettings['colorTable'])
 			self._update()
-	"""
 
 	def _setWidgetValue(self, value):
 		self.cVar = value
