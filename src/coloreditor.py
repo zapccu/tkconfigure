@@ -11,16 +11,12 @@ defaultPaletteDef = {
 	"Linear": {
 		"type": "Linear",
 		"size": 4096,
-		"par": {
-			"colorPoints": [(80/255, 80/255, 80/255), (1., 1., 1.)]
-		}
+		"par": [(80/255, 80/255, 80/255), (1., 1., 1.)]
 	},
 	"Sinus": {
 		"type": "Sinus",
 		"size": 4096,
-		"par": {
-			"thetas": [.85, .0, .15]
-		}
+		"par": [.85, .0, .15]
 	}
 }
 
@@ -29,6 +25,41 @@ class ColorEditor:
 	def __init__(self, mainWindow, width: int = 400, height: int = 600, palettename: str = 'Grey', palettedef: dict = defaultPaletteDef['Linear']):
 		self.orgPaletteDef  = palettedef
 		self.orgPaletteName = palettename
+
+		self.colorSettings = tkc.TKConfigure({
+			"Color parameters": {
+				"type": {
+					'inputtype': 'str',
+					'valrange':  ['Linear', 'Sinus', 'SinusCosinus'],
+					'initvalue': palettedef['type'],
+					'widget':    'TKCListbox',
+					'label':     'Type',
+					'width':     15
+				},
+				"name": {
+					'inputtype': 'str',
+					'initvalue': palettename,
+					'widget':    'TKCEntry',
+					'label':     'Name',
+					'width':     20
+				},
+				"size": {
+					'inputtype': 'int',
+					'valrange':  (2, 4096, 50),
+					'initvalue': palettedef['size'],
+					'widget':    'TKCSpinbox',
+					'label':     'Size',
+					'width':     8
+				},
+				"par": {
+					'inputtype': 'list',
+					'initvalue': palettedef['par'],
+					'widget':    'TKCList',
+					'label':     'Parameters',
+					'width':     20
+				}
+			}
+		})
 
 		self.masterSettings = tkc.TKConfigure({
 			"Palette": {
@@ -57,8 +88,8 @@ class ColorEditor:
 					'width':     8
 				},
 				'colorTable': {
-					'inputtype': 'list',
-					'initvalue': [ palettedef, self.createPaletteFromDef(palettedef), palettename ],
+					'inputtype': 'tkc',
+					'initvalue': self.colorSettings,
 					'widget':    'TKCColortable',
 					'width':     width-20,
 					'readonly':  True
@@ -74,34 +105,23 @@ class ColorEditor:
 		self.apply      = False
 
 	# Show color editor
-	def show(self, title: str = "Color Editor", colorTable: list | None = None, palettename: str | None = None, palettedef: dict | None = None) -> bool:
+	def show(self, palettedef, title: str = "Color Editor") -> bool:
 		# Create the window
 		self.dlg = Toplevel(self.mainWindow)
 		self.dlg.geometry(f"{self.width}x{self.height}")
 		self.dlg.grab_set()
 		self.dlg.title(title)
 
-		if colorTable is not None:
-			self.orgPaletteDef = colorTable[0]
-			self.orgPaletteName = colorTable[2]
-			self.masterSettings.setValues(
-				paletteName=colorTable[2],
-				paletteType=colorTable[0]['type'],
-				paletteSize=colorTable[0]['size'],
-				colorTable=colorTable
-			)
-			self.typeSettings = self.paletteTypeSettings(colorTable[0])
-		elif palettename is not None and palettedef is not None:
-			self.orgPaletteDef  = palettedef
-			self.orgPaletteName = palettename
+		self.orgPaletteDef  = palettedef
+		self.orgPaletteName = palettedef['name']
 
-			self.masterSettings.setValues(
-				paletteName=palettename,
-				paletteType=palettedef['type'],
-				paletteSize=palettedef['size'],
-				colorTable=[palettedef, self.createPaletteFromDef(palettedef), palettename]
-			)
-			self.typeSettings = self.paletteTypeSettings(palettedef)
+		self.masterSettings.setValues(
+			paletteName=palettedef['name'],
+			paletteType=palettedef['type'],
+			paletteSize=palettedef['size'],
+			colorTable=palettedef
+		)
+		self.typeSettings = self.paletteTypeSettings(palettedef)
 
 		# Create widgets
 		self.tsrow  = self.masterSettings.createMask(self.dlg, padx=3, pady=5)
@@ -135,10 +155,11 @@ class ColorEditor:
 		"""
 
 	# Create palette type specific settings
-	def paletteTypeSettings(self, palettedef: dict):
+	def paletteTypeSettings(self, palettedef):
 		if palettedef['type'] == 'Linear':
+			# Create new parameter group
 			colorSettings = { 'Color points': {} }
-			for n, cp in enumerate(palettedef['par']['colorPoints'], start=0):
+			for n, cp in enumerate(palettedef['par'], start=0):
 				colorSettings['Color points']['point' + str(n)] = {
 					'inputtype': 'str',
 					'initvalue': '#{:02X}{:02X}{:02X}'.format(int(cp[0]*255), int(cp[1]*255), int(cp[2]*255)),
@@ -150,8 +171,9 @@ class ColorEditor:
 			return tkc.TKConfigure(colorSettings)
 		
 		elif palettedef['type'] == 'Sinus':
+			# Create new parameter group
 			colorSettings = { 'Thetas': {} }
-			for n, t in enumerate(palettedef['par']['thetas'], start=1):
+			for n, t in enumerate(palettedef['par'], start=1):
 				colorSettings['Thetas']['theta' + str(n)] = {
 					'inputtype': 'float',
 					'valrange':  (0, 1, 0.01),
@@ -168,7 +190,8 @@ class ColorEditor:
 		return tuple([int(html[i:i+2], 16) / f for i in (1, 3, 5)])
 	
 	# Create list of count values with linear distribution between start and end
-	def _linspace(self, start, end, count) -> list:
+	@staticmethod
+	def _linspace(start, end, count) -> list:
 		if type(start) is tuple and type(end) is tuple:
 			if len(start) != len(end):
 				raise ValueError("tuples start and end must have the same size")
@@ -178,10 +201,11 @@ class ColorEditor:
 			d = (end-start)/(count-1)
 			return [ start + d * i for i in range(count) ]
 
-	def createLinearPalette(self, numColors: int, colorPoints: list = [(1., 1., 1.)]) -> list:
+	@staticmethod
+	def createLinearPalette(numColors: int, colorPoints: list = [(1., 1., 1.)]) -> list:
 		if len(colorPoints) == 0:
 			# Greyscale palette
-			palette = self._linspace((0., 0., 0.), (1., 1., 1.), max(numColors, 2))
+			palette = ColorEditor._linspace((0., 0., 0.), (1., 1., 1.), max(numColors, 2))
 		elif (len(colorPoints) == 1):
 			# Monochrome palette
 			palette = [colorPoints[0] for i in range(numColors) ]
@@ -192,31 +216,33 @@ class ColorEditor:
 			for i in range(len(colorPoints)-1):
 				if secSize + len(palette)-1 > numColors: secSize = numColors - len(palette)
 				palette.pop()
-				palette += (self._linspace(colorPoints[i], colorPoints[i+1], secSize))
+				palette += (ColorEditor._linspace(colorPoints[i], colorPoints[i+1], secSize))
 
 		return palette
 	
-	def createSinusPalette(self, numColors: int, thetas: list = [.85, .0, .15]) -> list:
+	@staticmethod
+	def createSinusPalette(numColors: int, thetas: list = [.85, .0, .15]) -> list:
 		numColors = max(numColors, 2)
-		ct = self._linspace((0, 0, 0), (1, 1, 1), numColors)
+		ct = ColorEditor._linspace((0, 0, 0), (1, 1, 1), numColors)
 		for i in range(numColors):
 			for n in range(3):
 				ct[i][n] = 0.5 + 0.5 * math.sin((ct[i][n] + thetas[n]) * 2 * math.pi)
 
 		return ct
 	
-	def createPaletteFromDef(self, paletteDef: dict, size: int = -1) -> list:
+	@staticmethod
+	def createPaletteFromDef(paletteDef: dict, size: int = -1) -> list:
 		entries = size if size != -1 else paletteDef['size']
 		if paletteDef['type'] == 'Linear':
-			return self.createLinearPalette(entries, **paletteDef['par'])
+			return ColorEditor.createLinearPalette(entries, paletteDef['par'])
 		elif paletteDef['type'] == 'Sinus':
-			return self.createSinusPalette(entries, **paletteDef['par'])
+			return ColorEditor.createSinusPalette(entries, paletteDef['par'])
 		else:
 			raise ValueError("Illegal palette type")
 
 	def updateColorTable(self, palettedef: dict):
-		colortable = self.createPaletteFromDef(palettedef)
-		self.masterSettings.set('colorTable', [palettedef, colortable, self.masterSettings['paletteName']], sync=True)
+		self.colorSettings.setConfig(palettedef, simple=True)
+		self.masterSettings.set('colorTable', self.colorSettings, sync=True)
 
 	# Palette type changed
 	def onPaletteTypeChanged(self, oldValue, newValue):
@@ -237,9 +263,7 @@ class ColorEditor:
 		self.updateColorTable({
 			"type": self.masterSettings['paletteType'],
 			"size": self.masterSettings['paletteSize'],
-			"par": {
-				"colorPoints": rgbPoints
-			}
+			"par":  rgbPoints
 		})
 
 	# Sinus palette: One of the theta values changed
@@ -248,9 +272,7 @@ class ColorEditor:
 		self.updateColorTable({
 			"type": "Sinus",
 			"size": self.masterSettings['paletteSize'],
-			"par": {
-				"thetas": thetas
-			}
+			"par":  thetas
 		})
 
 	# Button OK or CANCEL pressed
@@ -267,6 +289,6 @@ class ColorEditor:
 		self.masterSettings.setValues(
 			paletteName=self.orgPaletteName,
 			paletteSize=self.orgPaletteDef['size'],
-			colorTable=[self.orgPaletteDef, self.createPaletteFromDef(self.orgPaletteDef), self.orgPaletteName],
+			colorTable=[self.orgPaletteDef, ColorEditor.createPaletteFromDef(self.orgPaletteDef), self.orgPaletteName],
 			sync=True)
 		self.btnrow = self.typeSettings.createMask(self.dlg, startrow=self.tsrow, padx=3, pady=5)

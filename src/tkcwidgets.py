@@ -5,6 +5,8 @@ import re
 from tkinter.colorchooser import askcolor
 from typing import Literal
 
+from . import coloreditor as ce
+
 
 class Tooltip(object):
 
@@ -98,6 +100,7 @@ class _TKCWidget:
 		'TKCSlider',          # Horizontal slider
 		'TKCColor',           # Rectangle with color => click opens color chooser
 		'TKCColortable',      # Rectangle with color table => click opens color editor,
+		'TKCList',            # Read-only entry field with list values => click opens list editor,
 		'TKCDialog',          # A top level dialog window to enter values of a TKConfigure object
 		'TKCMask'             # Submask with widgets, used for inputtype 'tkc'
 	]
@@ -663,12 +666,12 @@ class TKCColor(_TKCWidget, tk.Canvas):
 
 		
 class TKCColortable(_TKCWidget, tk.Canvas):
-	def __init__(self, parent, id: str, inputtype: Literal['list'] = 'list',
+	def __init__(self, parent, id: str, inputtype: Literal['tkc'] = 'tkc',
 				initvalue = [], onChange = None, readonly: bool = False, width = 50,
 				*args, **kwargs):
 		# Check parameters
-		if inputtype != 'list':
-			raise ValueError(f"{id}: Invalid inputtype {inputtype}. Only 'list' supported by TKCColortable")
+		if inputtype != 'tkc':
+			raise ValueError(f"{id}: Invalid inputtype {inputtype}. Only 'tkc' supported by TKCColortable")
 
 		self.parent = parent
 		self.width  = width
@@ -692,7 +695,9 @@ class TKCColortable(_TKCWidget, tk.Canvas):
 	def _setWidgetValue(self, value):
 		self.cVar = value
 
-		paletteDef, colorTable, paletteName = value
+		#paletteDef, paletteName = value
+		paletteDef = value.getConfig(simple=True)
+		colorTable = ce.ColorEditor.createPaletteFromDef(paletteDef)
 		width  = self.winfo_reqwidth()
 		height = self.winfo_reqheight()
 
@@ -722,7 +727,37 @@ class TKCColortable(_TKCWidget, tk.Canvas):
 	def _getWidgetValue(self):
 		return self.cVar
 
+class TKCList(_TKCWidget, tk.Entry):
+	def __init__(self, parent, id: str, inputtype: Literal['list'] = 'list',
+				initvalue = [], onChange = None, readonly: bool = False, width = 50,
+				*args, **kwargs):
+		# Check parameters
+		if inputtype != 'list':
+			raise ValueError(f"{id}: Invalid inputtype {inputtype}. Only 'list' supported by TKCList")
 
+		self.parent = parent
+		self.lVar   = initvalue
+		self.sVar   = tk.StringVar()
+
+		# Initialize widget
+		tk.Entry.__init__(self, parent, width=width, *args, **kwargs)
+		_TKCWidget.__init__(self, parent, id, inputtype=inputtype, initvalue=initvalue, onChange=onChange, readonly=readonly)
+
+		# Configure the widget
+		state = 'readonly' if readonly else 'normal'
+		self.config(
+			textvariable=self.sVar,
+			justify='left',
+			state=state
+		)
+
+	def _setWidgetValue(self, value):
+		self.lVar = value
+		self.sVar.set(str(value))
+
+	def _getWidgetValue(self):
+		return self.lVar
+	
 class TKCDialog(_TKCWidget, tk.Entry):
 	def __init__(self, parent, id: str, inputtype: Literal['tkc'] = 'tkc',
 				initvalue = None, onChange = None, readonly: bool = True, width = 30,

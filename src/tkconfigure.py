@@ -344,7 +344,6 @@ class TKConfigure:
 		for id in config:
 			self._validateGroupId(id=id)
 			if simple:
-				print(f"Validating {id}")
 				self._validateValue(id, config[id])
 			else:
 				if 'value' not in config[id]:
@@ -667,6 +666,7 @@ class TKConfigure:
 			self.set(id, self.widget[id].get())
 
 	# Called when button linked to widget is pressed
+	# Parameter settings contains the TKConfigure object to be changed
 	def onParEditButton(self, id: str, master, title: str, settings):
 		parCfg = self.getIdDefinition(id)
 		padx   = 10
@@ -691,7 +691,7 @@ class TKConfigure:
 
 		elif parCfg['widget'] == 'TKCColortable':
 			cEdit = ce.ColorEditor(master, width=max(width, 400), height=max(height, 600))
-			if cEdit.show(title=title, colorTable=settings):
+			if cEdit.show(settings, title=title):
 				self._onChange(id, cEdit.masterSettings['colorTable'])
 				self.syncWidget(id)
 				# self.set(id, cEdit.masterSettings['colorTable'], sync=True)
