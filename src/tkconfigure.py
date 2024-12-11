@@ -507,14 +507,18 @@ class TKConfigure:
 
 		if simple:
 			for id, value in config.items():
-				parDef = self.getIdDefinition(id)
-				if parDef['inputtype'] == 'tkc':
-					if type(value) is dict:
-						self.config[id].setConfig(value, simple=True)
+				try:
+					parDef = self.getIdDefinition(id)
+					if parDef['inputtype'] == 'tkc':
+						if type(value) is dict:
+							print("Type of ", id, " is ", type(self.config[id]['value']))
+							self.config[id]['value'].setConfig(value, simple=True)
+						else:
+							raise TypeError(f"JSON value for inputtype 'tkc' must be of type 'dict'")
 					else:
-						raise TypeError(f"JSON value for inputtype 'tkc' must be of type 'dict'")
-				else:
-					self.config.update({ id: { 'oldValue': value, 'value': value }})
+						self.config.update({ id: { 'oldValue': value, 'value': value }})
+				except Exception as e:
+					raise ValueError(f"Error {e} in setConfig: id={id}, value={value}")
 		else:
 			self.config.update(config)
 
