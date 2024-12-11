@@ -104,7 +104,7 @@ class TKConfigure:
 		# Allowed parameter definition keys
 		self.attributes = [
 			'inputtype', 'valrange', 'initvalue', 'widget', 'label', 'width', 'widgetattr',
-			'notify', 'row', 'column', 'readonly', 'tooltip'
+			'notify', 'row', 'column', 'readonly', 'tooltip', 'pardef'
 		]
 
 		# Default values for parameter attributes
@@ -120,7 +120,8 @@ class TKConfigure:
 			'row':         -1,
 			'column':      -1,
 			'readonly':    False,
-			'tooltip':     ''
+			'tooltip':     '',
+			'pardef':      None
 		}
 
 		# Maximum width of widgets
@@ -252,14 +253,16 @@ class TKConfigure:
 		
 	# Validate parameter defintion
 	def _validateParDef(self, id: str, parCfg: dict):
+		inputtype = parCfg['inputtype']
+		initvalue = parCfg['initvalue']
+		valrange  = parCfg['valrange']
+		
 		# Validate attributes
 		for a in parCfg:
 			if a not in self.attributes:
 				raise ValueError(f"Unknown attribute {a} for parameter {id}")
-			
-		inputtype = parCfg['inputtype']
-		initvalue = parCfg['initvalue']
-		valrange  = parCfg['valrange']
+		if inputtype == 'tkc' and 'pardef' not in parCfg:
+			raise ValueError("inputtype 'tkc' requires attribute 'pardef'")
 
 		# Validate the inputtype
 		if inputtype not in self.types:
@@ -498,8 +501,10 @@ class TKConfigure:
 	#   clear:
 	#     True - Delete config dictionary before applying config
 	#     False - Do not delete config dictionary (default)
+	#   sync:
+	#     True - Sync widget values
 	#
-	def setConfig(self, config: dict, simple: bool = False, checkmissing: bool = False, reset: bool = False, clear: bool = False):
+	def setConfig(self, config: dict, simple: bool = False, checkmissing: bool = False, reset: bool = False, clear: bool = False, sync: bool = False):
 		self._validateConfig(config, simple=simple)
 
 		if clear: self.config = {}
@@ -511,12 +516,12 @@ class TKConfigure:
 					parDef = self.getIdDefinition(id)
 					if parDef['inputtype'] == 'tkc':
 						if type(value) is dict:
-							print("Type of ", id, " is ", type(self.config[id]['value']))
 							self.config[id]['value'].setConfig(value, simple=True)
+							self.syncWidget(id)
 						else:
 							raise TypeError(f"JSON value for inputtype 'tkc' must be of type 'dict'")
 					else:
-						self.config.update({ id: { 'oldValue': value, 'value': value }})
+						self.set(id, value, sync=sync, init=True)
 				except Exception as e:
 					raise ValueError(f"Error {e} in setConfig: id={id}, value={value}")
 		else:
@@ -530,10 +535,10 @@ class TKConfigure:
 
 	# Set config value if new value is different from current value
 	# If sync is True, update widget (if widget linked with parameter)
-	def set(self, id: str, value, sync: bool = False):
+	def set(self, id: str, value, sync: bool = False, init: bool = False):
 		newValue = self._validateValue(id, value, bCast=True)
 
-		if id not in self.config or 'value' not in self.config[id]:
+		if id not in self.config or 'value' not in self.config[id] or init:
 			self.config.update({ id: { 'oldValue': newValue, 'value': newValue }})
 		else:
 			# Store value if different from current value
