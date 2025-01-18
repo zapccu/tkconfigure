@@ -256,17 +256,22 @@ class TKConfigure:
 		inputtype = parCfg['inputtype']
 		initvalue = parCfg['initvalue']
 		valrange  = parCfg['valrange']
+
+		# Validate the inputtype
+		if inputtype not in self.types:
+			raise TypeError(f"Unknown inputtype for parameter {id}")
 		
 		# Validate attributes
 		for a in parCfg:
 			if a not in self.attributes:
 				raise ValueError(f"Unknown attribute {a} for parameter {id}")
-		if inputtype == 'tkc' and 'pardef' not in parCfg:
-			raise ValueError("inputtype 'tkc' requires attribute 'pardef'")
 
-		# Validate the inputtype
-		if inputtype not in self.types:
-			raise TypeError(f"Unknown inputtype for parameter {id}")
+		# inputtype 'tkc' requires a parameter definition
+		if inputtype == 'tkc':
+			if parCfg['pardef'] is None:
+				raise ValueError(f"inputtype 'tkc' of parameter {id} requires attribute 'pardef'")
+			if type(parCfg['pardef']) is not dict:
+				raise ValueError(f"Attribute 'pardef' of parameter {id} must be of type 'dict'")
 		
 		# initvalue must match inputtype
 		if type(initvalue) is not self.types[inputtype]:

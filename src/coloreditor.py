@@ -92,7 +92,8 @@ class ColorEditor:
 					'initvalue': self.colorSettings,
 					'widget':    'TKCColortable',
 					'width':     width-20,
-					'readonly':  True
+					'readonly':  True,
+					'pardef':    self.colorSettings.parDef
 				}
 			}
 		})
